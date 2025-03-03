@@ -1,0 +1,62 @@
+import { useState } from "react";
+
+interface CandidateProps {
+  name: string;
+  photoUrl: string;
+  vision: string;
+  mission: string;
+  resumeLink: string; // Link ke IPFS
+}
+
+const CandidateCard: React.FC<CandidateProps> = ({ name, photoUrl, vision, mission, resumeLink }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-sm flex flex-col">
+      <img src={photoUrl} alt={name} className="w-full h-100 object-cover rounded-xl mb-4" />
+      <h2 className="text-lg font-bold text-gray-800 items-center">{name}</h2>
+
+      <div className="text-left mt-3">
+        <h3 className="font-semibold text-gray-700">Vision:</h3>
+        <p className="text-sm text-gray-600">{vision}</p>
+
+        <h3 className="font-semibold text-gray-700 mt-2">Mission:</h3>
+        <p className="text-sm text-gray-600">{mission}</p>
+      </div>
+
+      {/* Tombol untuk membuka modal */}
+      <button 
+        onClick={() => setIsOpen(true)} 
+        className="mt-4 bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 transition"
+      >
+        Lihat Resume
+      </button>
+
+      {/* Modal dengan iframe untuk menampilkan resume */}
+      {isOpen && (
+        <div className="fixed inset-0 bg-opacity-50 flex justify-center items-center p-4 z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-2xl relative">
+            {/* Tombol close */}
+            <button 
+              onClick={() => setIsOpen(false)} 
+              className="absolute top-2 right-3 text-gray-600 hover:text-gray-900 text-2xl"
+            >
+              ×
+            </button>
+            
+            <h2 className="text-lg font-bold text-gray-800 mb-3">Resume</h2>
+
+            {/* Iframe untuk menampilkan file dari IPFS */}
+            <iframe 
+              src={resumeLink} 
+              className="w-full h-[500px] border rounded-lg"
+              allowFullScreen
+            ></iframe>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default CandidateCard;

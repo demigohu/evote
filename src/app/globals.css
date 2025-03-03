@@ -1,24 +1,39 @@
 @import "tailwindcss";
 
-@theme {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
 
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+@keyframes changeBackground {
+  0%, 100% {
+    background-image: url("/3.png");
+  }
+  33% {
+    background-image: url("/2.png");
+  }
+  66% {
+    background-image: url("/1.png");
+  }
+}
+
+.background-animation {
+  min-height: 100vh;
+  background-size: cover;
+  background-position: center;
+  animation: changeBackground 15s infinite ease-in-out;
+}
+
+.h1 {
+  color: #FFF;
+text-align: center;
+font-family: Yellowtail;
+font-size: 80px;
+font-style: normal;
+font-weight: 400;
+line-height: 34px; /* 42.5% */
+text-transform: lowercase;
 }
