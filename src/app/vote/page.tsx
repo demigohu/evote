@@ -20,6 +20,8 @@ export default function Vote() {
   const [voteStatus, setVoteStatus] = useState<"idle" | "loading" | "success" | "failed">("idle");
   const [selectedCandidate, setSelectedCandidate] = useState<number | null>(null);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+  const [approveTxHash, setApproveTxHash] = useState<string | null>(null);
+  const [voteTxHash, setVoteTxHash] = useState<string | null>(null);
 
   // Update ukuran confetti saat resize
   useEffect(() => {
@@ -69,30 +71,34 @@ export default function Vote() {
     }
   
     const now = Math.floor(Date.now() / 1000);
-  
     if (now < votingStart) {
       alert(`Voting belum dimulai! Silakan tunggu hingga ${formatDate(votingStart)}.`);
       return;
     }
-  
     if (now > votingEnd) {
       alert("Voting sudah berakhir.");
       return;
     }
   
-    setSelectedCandidate(Number(candidateId)); // Simpan candidate ID ke state
-    setIsTransactionModalOpen(true); // Buka modal
+    setSelectedCandidate(Number(candidateId));
+    setIsTransactionModalOpen(true);
     setApproveStatus("loading");
     setVoteStatus("idle");
+    setApproveTxHash(null);
+    setVoteTxHash(null);
   
     try {
-      const { approveSuccess, voteSuccess } = await voteCandidate(Number(candidateId), setApproveStatus, setVoteStatus);
+      const { approveSuccess, voteSuccess, approveTxHash, voteTxHash } = await voteCandidate(
+        Number(candidateId), 
+        setApproveStatus, 
+        setVoteStatus
+      );
+  
+      if (approveTxHash) setApproveTxHash(approveTxHash);
+      if (voteTxHash) setVoteTxHash(voteTxHash);
   
       if (approveSuccess && voteSuccess) {
-        setTimeout(() => {
-          setIsTransactionModalOpen(false);
-          window.location.reload();
-        }, 2000);
+        setVoteStatus("success"); // Tetap update status sukses, tapi tanpa menutup modal otomatis
       }
     } catch (error) {
       console.error("Voting gagal:", error);
@@ -161,65 +167,123 @@ export default function Vote() {
 
       {/* MODAL Transaction */}
       {isTransactionModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <motion.div
-            initial={{ opacity: 0, scale: 0.7 }} // Animasi awal
-            animate={{ opacity: 1, scale: 1 }} // Animasi saat muncul
-            exit={{ opacity: 0, scale: 0.7 }} // Animasi saat ditutup
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="bg-white p-6 rounded-lg shadow-lg w-96 text-center"
+            className="bg-white p-6 rounded-2xl shadow-xl w-96 text-left"
           >
-            <h2 className="text-xl font-bold">📝 Voting Progress</h2>
+            <h2 className="text-2xl font-bold flex items-center gap-2 justify-center">
+              📝 Voting Progress
+            </h2>
 
-            {/* Step 1: Approve Token */}
-            <div className="flex items-center justify-between mt-4">
-              <p>Approving Token...</p>
+            {/* Step 1: Approving Token */}
+            <div className="flex flex-col items-start mt-4 w-full">
               {approveStatus === "loading" && (
                 <motion.div 
-                  className="w-5 h-5 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"
-                  animate={{ rotate: 360 }}
-                  transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="flex items-center gap-2 text-sm text-gray-700 font-medium"
+                >
+                  Approving Token...
+                  <div className="w-4 h-4 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                </motion.div>
+              )}
+
+              {/* Loading Bar Tetap di Bawah */}
+              {approveStatus === "loading" && (
+                <motion.div
+                  initial={{ width: "0%" }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 5 }}
+                  className="h-2 bg-blue-500 mt-2 rounded-lg"
                 />
               )}
-              {approveStatus === "success" && <span className="text-green-500">✅</span>}
+
+              {approveStatus === "success" && (
+                <div className="flex justify-between items-center w-full mt-2">
+                  <span className="text-green-500 text-lg">✅ Approved</span>
+                  {approveTxHash && (
+                    <a 
+                      href={`https://sepolia.etherscan.io/tx/${approveTxHash}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-blue-500 text-md hover:underline"
+                    >
+                      🔗
+                    </a>
+                  )}
+                </div>
+              )}
+
               {approveStatus === "failed" && (
-                <button onClick={() => handleVote(Number(selectedCandidate))} className="text-red-500 underline">
+                <button 
+                  onClick={() => handleVote(Number(selectedCandidate))} 
+                  className="mt-2 text-red-500 underline hover:text-red-700 transition"
+                >
                   Retry
                 </button>
               )}
             </div>
 
-            {/* Progress Bar */}
-            <motion.div
-              initial={{ width: "0%" }}
-              animate={{ width: approveStatus === "loading" ? "50%" : voteStatus === "loading" ? "100%" : "100%" }}
-              transition={{ duration: 2 }}
-              className="h-2 bg-blue-500 mt-4 rounded-lg"
-            />
-
-            {/* Step 2: Voting */}
-            <div className="flex items-center justify-between mt-4">
-              <p>Submitting Vote...</p>
+            {/* Step 2: Submitting Vote */}
+            <div className="flex flex-col items-start mt-4 w-full">
               {voteStatus === "loading" && (
                 <motion.div 
-                  className="w-5 h-5 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"
-                  animate={{ rotate: 360 }}
-                  transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="flex items-center gap-2 text-sm text-gray-700 font-medium"
+                >
+                  Submitting Vote...
+                  <div className="w-4 h-4 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                </motion.div>
+              )}
+
+              {/* Loading Bar Tetap di Bawah */}
+              {voteStatus === "loading" && (
+                <motion.div
+                  initial={{ width: "0%" }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 2 }}
+                  className="h-2 bg-blue-500 mt-2 rounded-lg"
                 />
               )}
-              {voteStatus === "success" && <span className="text-green-500">✅</span>}
+
+              {voteStatus === "success" && (
+                <div className="flex justify-between items-center w-full mt-2">
+                  <span className="text-green-500 text-lg">✅ Vote Submitted</span>
+                  {voteTxHash && (
+                    <a 
+                      href={`https://sepolia.etherscan.io/tx/${voteTxHash}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-blue-500 text-md hover:underline"
+                    >
+                      🔗
+                    </a>
+                  )}
+                </div>
+              )}
+
               {voteStatus === "failed" && (
-                <button onClick={() => voteCandidate(Number(selectedCandidate), setApproveStatus, setVoteStatus)} className="text-red-500 underline">
+                <button 
+                  onClick={() => voteCandidate(Number(selectedCandidate), setApproveStatus, setVoteStatus)} 
+                  className="mt-2 text-red-500 underline hover:text-red-700 transition"
+                >
                   Retry
                 </button>
               )}
             </div>
 
             {/* Close Modal Button */}
-            {voteStatus === "success" && (
+            {voteStatus === "success" && approveStatus === "success" && (
               <motion.button
                 onClick={() => setIsTransactionModalOpen(false)}
-                className="mt-4 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+                className="mt-4 bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-all shadow-md flex justify-center mx-auto"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
               >
@@ -229,6 +293,15 @@ export default function Vote() {
           </motion.div>
         </div>
       )}
+
+
+
+
+
+
+
+
+
 
 
       {/* MODAL WINNER */}

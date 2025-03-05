@@ -55,8 +55,18 @@ export default function AddCandidates() {
           <input type="text" placeholder="Candidate Name" value={candidates.name} onChange={(e) => setCandidates({ ...candidates, name: e.target.value })} className="w-full p-2 border border-gray-300 rounded-md" />
           <input type="text" placeholder="Photo Url" value={candidates.photoUrl} onChange={(e) => setCandidates({ ...candidates, photoUrl: e.target.value })} className="w-full p-2 border border-gray-300 rounded-md" />
           <input type="text" placeholder="Resume" value={candidates.resume} onChange={(e) => setCandidates({ ...candidates, resume: e.target.value })} className="w-full p-2 border border-gray-300 rounded-md" />
-          <input type="text" placeholder="Vision" value={candidates.vision} onChange={(e) => setCandidates({ ...candidates, vision: e.target.value })} className="w-full p-2 border border-gray-300 rounded-md" />
-          <input type="text" placeholder="Mission" value={candidates.mission} onChange={(e) => setCandidates({ ...candidates, mission: e.target.value })} className="w-full p-2 border border-gray-300 rounded-md" />
+          <textarea
+            placeholder="Vision"
+            value={candidates.vision}
+            onChange={(e) => setCandidates({ ...candidates, vision: e.target.value })}
+            className="w-full p-2 border border-gray-300 rounded-md h-24"
+          />
+          <textarea
+            placeholder="Mission"
+            value={candidates.mission}
+            onChange={(e) => setCandidates({ ...candidates, mission: e.target.value })}
+            className="w-full p-2 border border-gray-300 rounded-md h-24"
+          />
 
           <button onClick={handleAddCandidates} className="w-full bg-indigo-500 text-white py-2 rounded-lg hover:bg-indigo-600">Submit</button>
         </form>

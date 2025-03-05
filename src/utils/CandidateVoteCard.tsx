@@ -53,18 +53,18 @@ const CandidateVoteCard: React.FC<CandidateProps> = ({ id, name, photoUrl, visio
       </button>
 
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-          <div className="bg-white p-6 rounded-3xl shadow-xl w-full max-w-3xl relative">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white p-6 rounded-3xl shadow-xl w-full max-w-3xl relative max-h-[80vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-center mb-4">{name}</h2>
             
             <div className="grid grid-cols-2 gap-4">
               <div className="border-2 border-red-500 p-3 rounded-lg">
                 <h3 className="font-bold">Vision</h3>
-                <p>{vision}</p>
+                <p style={{ whiteSpace: "pre-line" }}>{vision}</p>
               </div>
               <div className="border-2 border-red-500 p-3 rounded-lg">
                 <h3 className="font-bold">Mission</h3>
-                <p>{mission}</p>
+                <p style={{ whiteSpace: "pre-line" }}>{mission}</p>
               </div>
             </div>
             

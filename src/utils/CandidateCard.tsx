@@ -14,14 +14,14 @@ const CandidateCard: React.FC<CandidateProps> = ({ name, photoUrl, vision, missi
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-sm flex flex-col">
       <img src={photoUrl} alt={name} className="w-full h-100 object-cover rounded-xl mb-4" />
-      <h2 className="text-lg font-bold text-gray-800 items-center">{name}</h2>
+      <h2 className="text-lg font-bold text-gray-800 text-center">{name}</h2>
 
       <div className="text-left mt-3">
         <h3 className="font-semibold text-gray-700">Vision:</h3>
-        <p className="text-sm text-gray-600">{vision}</p>
+        <p style={{ whiteSpace: "pre-line" }} className="text-sm text-gray-600">{vision}</p>
 
         <h3 className="font-semibold text-gray-700 mt-2">Mission:</h3>
-        <p className="text-sm text-gray-600">{mission}</p>
+        <p style={{ whiteSpace: "pre-line" }} className="text-sm text-gray-600">{mission}</p>
       </div>
 
       {/* Tombol untuk membuka modal */}

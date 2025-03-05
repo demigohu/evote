@@ -1,4 +1,4 @@
-export const contractAddress = "0xCbC6ecBc09D003da9A8Fd2785083276C3133c384";
+export const contractAddress = "0x26923C842F3E7E86BEA10EAB832dE2691b8a6163";
 export const contractABI = [
   {
     "inputs": [
@@ -421,7 +421,7 @@ export const contractABI = [
 
                                                                                 // TOKEN //
 
-export const tokenAddress = "0x92896Cb2eE7DAAC4Ff77C94E9bd0933f71897006";
+export const tokenAddress = "0x800F4cf9866D12fca473d21EBE7068d33D6D12B0";
 export const tokenABI = [
   {
     "inputs": [

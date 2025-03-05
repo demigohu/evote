@@ -50,7 +50,12 @@ export async function voteCandidate (
   candidateId: number,
   setApproveStatus: (status: "loading" | "success" | "failed") => void,
   setVoteStatus: (status: "idle" | "loading" | "success" | "failed") => void
-): Promise<{ approveSuccess: boolean; voteSuccess: boolean }> {
+): Promise<{ 
+  approveSuccess: boolean; 
+  voteSuccess: boolean;
+  approveTxHash?: string;
+  voteTxHash?: string;
+}> {
   const provider = getProvider();
   const signer = await provider.getSigner();
   const votingContract = new ethers.Contract(contractAddress, contractABI, signer);
@@ -59,30 +64,34 @@ export async function voteCandidate (
 
   let approveSuccess = false;
   let voteSuccess = false;
+  let approveTxHash: string | undefined;
+  let voteTxHash: string | undefined;
 
   // Step 1: Approve Token jika diperlukan
   if (allowance < ethers.parseUnits("1", 18)) {
     try {
       setApproveStatus("loading");
       const approveTx = await tokenContract.approve(contractAddress, ethers.parseUnits("1", 18));
+      approveTxHash = approveTx.hash; // Simpan hash transaksi approve
       await approveTx.wait();
       setApproveStatus("success");
       approveSuccess = true;
     } catch (error) {
       console.error("Approval gagal:", error);
       setApproveStatus("failed");
-      return { approveSuccess: false, voteSuccess: false }; // Jika approve gagal, langsung return
+      return { approveSuccess: false, voteSuccess: false };
     }
   } else {
     approveSuccess = true;
-    setApproveStatus("success"); // Langsung sukses jika sudah approve
+    setApproveStatus("success");
   }
 
   // Step 2: Lakukan Voting
   setVoteStatus("loading");
   try {
-    const tx = await votingContract.vote(candidateId);
-    await tx.wait();
+    const voteTx = await votingContract.vote(candidateId);
+    voteTxHash = voteTx.hash; // Simpan hash transaksi vote
+    await voteTx.wait();
     setVoteStatus("success");
     voteSuccess = true;
   } catch (error) {
@@ -91,8 +100,9 @@ export async function voteCandidate (
     return { approveSuccess: true, voteSuccess: false };
   }
 
-  return { approveSuccess, voteSuccess };
+  return { approveSuccess, voteSuccess, approveTxHash, voteTxHash };
 }
+
 
 
 
