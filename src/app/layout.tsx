@@ -1,5 +1,4 @@
 "use client";
-import type { Metadata } from "next";
 import { Poppins, Yellowtail } from "next/font/google";
 import "./globals.css";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -8,6 +7,8 @@ import { RainbowKitProvider, type Locale } from '@rainbow-me/rainbowkit';
 
 import { config } from '@/utils/Wagmi';
 import { polygon, polygonAmoy } from "viem/chains";
+import Navbar from "./navbar/page";
+
 
 const queryClient = new QueryClient();
 
@@ -30,12 +31,14 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  
   return (
     <html lang="en">
       <body className={`${poppins.variable} ${yellowtail.variable}`}>
         <WagmiProvider config={config}>
           <QueryClientProvider client={queryClient}>
-            <RainbowKitProvider initialChain={polygonAmoy} modalSize="compact">
+            <RainbowKitProvider initialChain={polygonAmoy}  modalSize="compact">
+              <Navbar />
               {children}
             </RainbowKitProvider>
           </QueryClientProvider>

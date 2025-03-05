@@ -34,8 +34,8 @@ const CandidateCard: React.FC<CandidateProps> = ({ name, photoUrl, vision, missi
 
       {/* Modal dengan iframe untuk menampilkan resume */}
       {isOpen && (
-        <div className="fixed inset-0 bg-opacity-50 flex justify-center items-center p-4 z-50">
-          <div className="bg-white p-6 rounded-lg w-full max-w-2xl relative">
+        <div className="fixed inset-0 flex justify-center items-center p-4 bg-black/50">
+          <div className="bg-white p-6 rounded-2xl w-full max-w-2xl relative">
             {/* Tombol close */}
             <button 
               onClick={() => setIsOpen(false)} 
@@ -49,7 +49,7 @@ const CandidateCard: React.FC<CandidateProps> = ({ name, photoUrl, vision, missi
             {/* Iframe untuk menampilkan file dari IPFS */}
             <iframe 
               src={resumeLink} 
-              className="w-full h-[500px] border rounded-lg"
+              className="w-full h-[600px] border rounded-lg"
               allowFullScreen
             ></iframe>
           </div>

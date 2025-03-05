@@ -46,7 +46,7 @@ export default function AddCandidates() {
   return (
     <>
     <Navbar />
-    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-teal-300 via-purple-200 to-indigo-500">
+    <div className="flex justify-center items-center min-h-screen " style={{ backgroundImage: "url('/4.jpg')", minHeight: "100vh", backgroundSize: "cover", backgroundPosition: "center" }}>
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-lg">
         <h2 className="text-2xl font-bold text-gray-900 text-center mb-6">Add Candidates</h2>
 

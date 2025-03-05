@@ -1,11 +1,25 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAccount } from "wagmi"
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Navbar from "./navbar/page";
-import AddCandidates from "./add-candidates/page";
+
 
 export default function Home() {
+  const router = useRouter();
+  const { isConnected } = useAccount(); // Cek apakah wallet terhubung
+
+  useEffect(() => {
+    if (isConnected) {
+      router.push("/candidates"); // Redirect ke halaman Candidate jika wallet terhubung
+    }
+  }, [isConnected, router]); // useEffect dipanggil ketika `isConnected` berubah
+
   return (
     <div className="flex flex-col">
-      <Navbar />
+      {/* <Navbar /> */}
       <div className="background-animation text-white flex flex-col items-center justify-center min-h-screen px-4 sm:px-20 py-12 gap-10">
         
         {/* Judul */}
