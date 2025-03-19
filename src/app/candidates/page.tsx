@@ -85,7 +85,7 @@ export default function Candidates() {
       >
         <h1 className="text-2xl font-bold text-gray-900 mb-2 pt-5">Candidates</h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-6">
           {candidates.map((candidate) => (
             <CandidateCard
               key={candidate.id}

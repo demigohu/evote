@@ -37,3 +37,13 @@ font-weight: 400;
 line-height: 34px; /* 42.5% */
 text-transform: lowercase;
 }
+
+/* Untuk Chrome, Edge, dan Safari */
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+/* Untuk Firefox */
+.scrollbar-hidden {
+  scrollbar-width: none;
+}

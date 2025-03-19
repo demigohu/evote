@@ -32,7 +32,7 @@ const CandidateVoteCard: React.FC<CandidateProps> = ({ id, name, photoUrl, visio
   }, [id]);
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-sm flex flex-col items-center">
+    <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-lg flex flex-col items-center">
       <img src={photoUrl} alt={name} className="w-full h-100 object-cover rounded-xl mb-4" />
       <h2 className="text-lg font-bold text-gray-800">{name}</h2>
 

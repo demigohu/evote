@@ -1,4 +1,6 @@
 import { ethers } from "ethers";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { contractABI, contractAddress, tokenAddress, tokenABI } from "./constant";
 
 export function getProvider() {
@@ -137,12 +139,13 @@ export async function claimToken() {
   try {
     const tx = await contract.claimVotingTokens();
     console.log("Transaksi dikirim:", tx.hash);
+    toast.info("Transaksi sedang diproses...");
 
     await tx.wait(); // Tunggu transaksi selesai
     console.log("Klaim berhasil!");
-    alert("Token berhasil diklaim!");
+    toast.success("Token berhasil diklaim!");
   } catch (error) {
     console.error("Gagal klaim token:", error);
-    alert("Gagal klaim token!");
+    toast.error("Gagal klaim token!");
   }
 }

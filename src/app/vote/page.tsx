@@ -149,7 +149,7 @@ export default function Vote() {
             : "Voting Is Ongoing"}
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-6 ">
           {candidates.map((candidate) => (
             <CandidateVoteCard
               key={candidate.id}
