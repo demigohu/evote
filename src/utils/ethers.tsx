@@ -4,11 +4,9 @@ import "react-toastify/dist/ReactToastify.css";
 import { contractABI, contractAddress, tokenAddress, tokenABI } from "./constant";
 
 export function getProvider() {
-  if (!window.ethereum) throw new Error("MetaMask is not installed");
+  if (!window.ethereum) throw new Error("MetaMask tidak terdeteksi");
   return new ethers.BrowserProvider(window.ethereum);
 }
-
-
 
 export async function getContractWithSigner() {
   const provider = getProvider();
@@ -16,39 +14,46 @@ export async function getContractWithSigner() {
   return new ethers.Contract(contractAddress, contractABI, signer);
 }
 
+export async function getCandidates(votingId: number) {
+  try {
+    const provider = getProvider();
+    const contract = new ethers.Contract(contractAddress, contractABI, provider);
+    
+    const votingDetails = await contract.getVotingDetails(votingId);
+    const count = Number(votingDetails[3]);
+    const votingEnd = Number(votingDetails[2]);
+    const isVotingEnded = Math.floor(Date.now() / 1000) > votingEnd;
 
-export async function getCandidates() {
-  const provider = getProvider();
-  const contract = new ethers.Contract(contractAddress, contractABI, provider);
-  
-  // Ambil jumlah kandidat
-  const count = await contract.candidatesCount();
-  let candidates = [];
-
-  for (let i = 1; i <= count; i++) {
-    const candidate = await contract.getCandidate(i);
-    candidates.push({
-      id: candidate[0],
-      name: candidate[1],
-      photoUrl: candidate[2],
-      resume: candidate[3],
-      vision: candidate[4],
-      mission: candidate[5],
-      voteCount: candidate[6].toString()
-    });
+    let candidates = [];
+    for (let i = 1; i <= count; i++) {
+      const candidate = await contract.getCandidate(votingId, i);
+      candidates.push({
+        id: candidate[0],
+        name: candidate[1],
+        photoUrl: candidate[2],
+        resume: candidate[3],
+        vision: candidate[4],
+        mission: candidate[5],
+        voteCount: isVotingEnded ? candidate[6].toString() : "0"
+      });
+    }
+    return candidates;
+  } catch (error) {
+    console.error("Error fetching candidates:", error);
+    toast.error("Gagal mengambil daftar kandidat!");
+    return [];
   }
-
-  return candidates;
 }
 
-export async function getTotalVotes() {
+export async function getTotalVotes(votingId: number) {
   const provider = getProvider();
   const contract = new ethers.Contract(contractAddress, contractABI, provider);
-  const totalVotes = await contract.totalVotes();
-  return Number (totalVotes);
+  const votingDetails = await contract.getVotingDetails(votingId);
+  return Number(votingDetails[4]);
 }
 
-export async function voteCandidate (
+export async function voteCandidate(
+  votingId: number,
   candidateId: number,
   setApproveStatus: (status: "loading" | "success" | "failed") => void,
   setVoteStatus: (status: "idle" | "loading" | "success" | "failed") => void
@@ -69,12 +74,11 @@ export async function voteCandidate (
   let approveTxHash: string | undefined;
   let voteTxHash: string | undefined;
 
-  // Step 1: Approve Token jika diperlukan
   if (allowance < ethers.parseUnits("1", 18)) {
     try {
       setApproveStatus("loading");
       const approveTx = await tokenContract.approve(contractAddress, ethers.parseUnits("1", 18));
-      approveTxHash = approveTx.hash; // Simpan hash transaksi approve
+      approveTxHash = approveTx.hash;
       await approveTx.wait();
       setApproveStatus("success");
       approveSuccess = true;
@@ -88,11 +92,10 @@ export async function voteCandidate (
     setApproveStatus("success");
   }
 
-  // Step 2: Lakukan Voting
   setVoteStatus("loading");
   try {
-    const voteTx = await votingContract.vote(candidateId);
-    voteTxHash = voteTx.hash; // Simpan hash transaksi vote
+    const voteTx = await votingContract.vote(votingId, candidateId);
+    voteTxHash = voteTx.hash;
     await voteTx.wait();
     setVoteStatus("success");
     voteSuccess = true;
@@ -105,30 +108,41 @@ export async function voteCandidate (
   return { approveSuccess, voteSuccess, approveTxHash, voteTxHash };
 }
 
+export async function getWinner(votingId: number) {
+  try {
+    const provider = getProvider();
+    const contract = new ethers.Contract(contractAddress, contractABI, provider);
+    const winner = await contract.getWinner(votingId);
+    return {
+      id: Number(winner[0]),
+      name: winner[1],
+      votes: Number(winner[2]),
+      photoUrl: winner[3]
+    };
+  } catch (error) {
+    console.error("Error fetching winner:", error);
+    return null;
+  }
+}
 
+export async function checkVoterStatus(votingId: number, voterAddress: string) {
+  const provider = getProvider();
+  const contract = new ethers.Contract(contractAddress, contractABI, provider);
+  const isRegistered = await contract.isVoterRegistered(votingId, voterAddress);
+  const hasVoted = await contract.hasVoterVoted(votingId, voterAddress);
+  return { isRegistered, hasVoted };
+}
 
-
-export async function getWinner() {
-    try {
-        const provider = getProvider();
-        const contract = new ethers.Contract(contractAddress, contractABI, provider);
-
-        const winner = await contract.getWinner();
-        return {
-            id: Number(winner[0]),
-            name: winner[1],
-            votes: Number(winner[2]),
-            photoUrl: winner[3]
-        };
-    } catch (error) {
-        console.error("Error fetching winner:", error);
-        return null;
-    }
+export async function checkClaimStatus(voterAddress: string) {
+  const provider = getProvider();
+  const contract = new ethers.Contract(tokenAddress, tokenABI, provider);
+  const hasClaimed = await contract.hasClaimed(voterAddress);
+  return hasClaimed;
 }
 
 export async function claimToken() {
   if (!window.ethereum) {
-    alert("Metamask tidak terdeteksi!");
+    toast.error("Metamask tidak terdeteksi!");
     return;
   }
 
@@ -140,12 +154,25 @@ export async function claimToken() {
     const tx = await contract.claimVotingTokens();
     console.log("Transaksi dikirim:", tx.hash);
     toast.info("Transaksi sedang diproses...");
-
-    await tx.wait(); // Tunggu transaksi selesai
-    console.log("Klaim berhasil!");
+    await tx.wait();
     toast.success("Token berhasil diklaim!");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gagal klaim token:", error);
-    toast.error("Gagal klaim token!");
+    if (error.message.includes("Tokens are non-transferable")) {
+      toast.error("Token tidak dapat ditransfer!");
+    } else if (error.message.includes("You have already claimed")) {
+      toast.error("Anda sudah mengklaim token sebelumnya!");
+    } else {
+      toast.error("Gagal klaim token: " + error.message);
+    }
   }
+}
+
+export async function isAdmin() {
+  const provider = getProvider();
+  const signer = await provider.getSigner();
+  const userAddress = await signer.getAddress();
+  const contract = new ethers.Contract(contractAddress, contractABI, provider);
+  const adminAddress = await contract.admin();
+  return userAddress.toLowerCase() === adminAddress.toLowerCase();
 }

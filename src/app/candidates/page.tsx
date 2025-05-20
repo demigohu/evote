@@ -7,6 +7,8 @@ import { contractABI, contractAddress } from "@/utils/constant";
 import { ethers } from "ethers";
 import { motion } from "framer-motion";
 import Confetti from "react-confetti";
+import { useAccount } from "wagmi";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function Candidates() {
   const [candidates, setCandidates] = useState<any[]>([]);
@@ -14,8 +16,18 @@ export default function Candidates() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [votingEnd, setVotingEnd] = useState<number | null>(null);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+  const [isLoading, setIsLoading] = useState(true);
+  const { isConnected } = useAccount();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const votingId = Number(searchParams.get("votingId")) || 1;
 
-  // Update ukuran confetti saat resize
+  useEffect(() => {
+    if (!isConnected) {
+      router.push("/");
+    }
+  }, [isConnected, router]);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       setWindowSize({ width: window.innerWidth, height: window.innerHeight });
@@ -32,44 +44,49 @@ export default function Candidates() {
   useEffect(() => {
     async function fetchData() {
       try {
+        setIsLoading(true);
         const provider = getProvider();
         const network = await provider.getNetwork();
         console.log("Network ID:", network.chainId);
         console.log("Provider:", provider);
         const contract = new ethers.Contract(contractAddress, contractABI, provider);
 
-        // Ambil data votingEnd
-        const end = await contract.votingEnd();
-        setVotingEnd(Number(end));
+        const votingDetails = await contract.getVotingDetails(votingId);
+        const end = Number(votingDetails[2]);
+        setVotingEnd(end);
 
-        // Ambil daftar kandidat
-        const candidatesList = await getCandidates();
+        const candidatesList = await getCandidates(votingId);
         setCandidates(candidatesList);
 
-        // Cek apakah voting sudah selesai
-        if (Date.now() / 1000 > Number(end)) {
-          const winnerData = await getWinner();
-
-          // Gunakan photoUrl langsung dari smart contract
-          if (winnerData) { // Pastikan tidak null sebelum menggunakannya
+        if (Date.now() / 1000 > end) {
+          const winnerData = await getWinner(votingId);
+          if (winnerData) {
             setWinner({
               id: winnerData?.id,
               name: winnerData?.name,
               votes: winnerData?.votes,
-              photoUrl: winnerData?.photoUrl, // Hindari error jika null
+              photoUrl: winnerData?.photoUrl,
             });
           }
-
-          // Tampilkan modal winner
           setIsModalOpen(true);
         }
       } catch (err) {
         console.error(err);
+      } finally {
+        setIsLoading(false);
       }
     }
 
     fetchData();
-  }, []);
+  }, [votingId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -83,7 +100,7 @@ export default function Candidates() {
           backgroundPosition: "center",
         }}
       >
-        <h1 className="text-2xl font-bold text-gray-900 mb-2 pt-5">Candidates</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2 pt-5">Kandidat</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-6">
           {candidates.map((candidate) => (
@@ -99,42 +116,39 @@ export default function Candidates() {
         </div>
       </div>
 
-      {/* MODAL WINNER */}
       {isModalOpen && winner && (
         <>
-          {/* 🎉 Confetti Effect */}
           <Confetti
             width={windowSize.width}
             height={windowSize.height}
-            numberOfPieces={300} // Banyaknya confetti
-            recycle={true} // Hanya muncul sekali
-            gravity={0.2} // Kecepatan jatuh confetti
+            numberOfPieces={300}
+            recycle={true}
+            gravity={0.2}
           />
-        {/* Modal dengan Animasi */}
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.5 }} // Animasi awal (fade-in + zoom)
-            animate={{ opacity: 1, scale: 1 }} // Animasi setelah muncul
-            exit={{ opacity: 0, scale: 0.5 }} // Animasi saat ditutup
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md text-center"
-          >
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">🏆 The Winner</h2>
-            <img 
-              src={winner.photoUrl} 
-              alt={winner.name} 
-              className="w-32 h-32 object-cover rounded-full mx-auto border-4 border-yellow-500"
-            />
-            <h3 className="text-xl font-semibold mt-4">{winner.name}</h3>
-            <p className="text-gray-600">Total Votes: {winner.votes}</p>
-            <button 
-              onClick={() => setIsModalOpen(false)}
-              className="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
+          <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.5 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md text-center"
             >
-              Close
-            </button>
-          </motion.div>
-        </div> 
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">🏆 Pemenang</h2>
+              <img 
+                src={winner.photoUrl} 
+                alt={winner.name} 
+                className="w-32 h-32 object-cover rounded-full mx-auto border-4 border-yellow-500"
+              />
+              <h3 className="text-xl font-semibold mt-4">{winner.name}</h3>
+              <p className="text-gray-600">Total Suara: {winner.votes}</p>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
+              >
+                Tutup
+              </button>
+            </motion.div>
+          </div> 
         </>
       )}
     </>

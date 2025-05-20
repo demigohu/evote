@@ -16,13 +16,14 @@ interface CandidateProps {
 const CandidateVoteCard: React.FC<CandidateProps> = ({ id, name, photoUrl, vision, mission, resumeLink, onVote }) => {
   const [votes, setVotes] = useState(0);
   const [showModal, setShowModal] = useState(false);
+  const [iframeFailed, setIframeFailed] = useState(false);
 
   useEffect(() => {
     const fetchVotes = async () => {
       try {
         const provider = getProvider();
         const contract = new ethers.Contract(contractAddress, contractABI, provider);
-        const candidate = await contract.getCandidate(id);
+        const candidate = await contract.getCandidate(1, id); // Asumsikan votingId = 1
         setVotes(Number(candidate[6]));
       } catch (error) {
         console.error("Error fetching votes:", error);
@@ -40,16 +41,16 @@ const CandidateVoteCard: React.FC<CandidateProps> = ({ id, name, photoUrl, visio
         onClick={() => setShowModal(true)}
         className="mt-2 border border-blue-500 text-blue-500 px-4 py-1 rounded-lg hover:bg-blue-500 hover:text-white transition w-full"
       >
-        Detail Candidate
+        Detail Kandidat
       </button>
 
-      <p className="mt-2 text-gray-700 font-semibold">Total Votes: {votes}</p>
+      <p className="mt-2 text-gray-700 font-semibold">Total Suara: {votes}</p>
 
       <button
         onClick={() => onVote(id)}
         className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition w-full"
       >
-        Vote Now
+        Vote Sekarang
       </button>
 
       {showModal && (
@@ -59,26 +60,36 @@ const CandidateVoteCard: React.FC<CandidateProps> = ({ id, name, photoUrl, visio
             
             <div className="grid grid-cols-2 gap-4">
               <div className="border-2 border-red-500 p-3 rounded-lg">
-                <h3 className="font-bold">Vision</h3>
+                <h3 className="font-bold">Visi</h3>
                 <p style={{ whiteSpace: "pre-line" }}>{vision}</p>
               </div>
               <div className="border-2 border-red-500 p-3 rounded-lg">
-                <h3 className="font-bold">Mission</h3>
+                <h3 className="font-bold">Misi</h3>
                 <p style={{ whiteSpace: "pre-line" }}>{mission}</p>
               </div>
             </div>
             
             <h3 className="mt-4 font-bold text-center">Resume</h3>
-            <iframe
-              src={resumeLink}
-              className="w-full h-64 border-2 border-red-500 rounded-lg mt-2"
-            ></iframe>
+            {iframeFailed ? (
+              <div className="text-center">
+                <p className="text-red-500">Gagal memuat resume di iframe.</p>
+                <a href={resumeLink} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+                  Buka di tab baru
+                </a>
+              </div>
+            ) : (
+              <iframe
+                src={resumeLink}
+                className="w-full h-64 border-2 border-red-500 rounded-lg mt-2"
+                onError={() => setIframeFailed(true)}
+              ></iframe>
+            )}
             
             <button
               onClick={() => setShowModal(false)}
               className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg w-full hover:bg-red-700"
             >
-              Close
+              Tutup
             </button>
           </div>
         </div>

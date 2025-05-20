@@ -2,11 +2,14 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import CandidateVoteCard from "@/utils/CandidateVoteCard";
-import { getCandidates, voteCandidate, getTotalVotes, getProvider, getWinner } from "@/utils/ethers";
+import { getCandidates, voteCandidate, getTotalVotes, getProvider, getWinner, checkVoterStatus } from "@/utils/ethers";
 import { contractABI, contractAddress } from "@/utils/constant";
 import Navbar from "../navbar/page";
 import { motion } from "framer-motion";
 import Confetti from "react-confetti";
+import { useAccount } from "wagmi";
+import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "react-toastify";
 
 export default function Vote() {
   const [candidates, setCandidates] = useState<any[]>([]);
@@ -22,8 +25,18 @@ export default function Vote() {
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   const [approveTxHash, setApproveTxHash] = useState<string | null>(null);
   const [voteTxHash, setVoteTxHash] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const { isConnected } = useAccount();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const votingId = Number(searchParams.get("votingId")) || 1;
 
-  // Update ukuran confetti saat resize
+  useEffect(() => {
+    if (!isConnected) {
+      router.push("/");
+    }
+  }, [isConnected, router]);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       setWindowSize({ width: window.innerWidth, height: window.innerHeight });
@@ -37,46 +50,59 @@ export default function Vote() {
     }
   }, []);
 
-
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setIsLoading(true);
         const provider = getProvider();
-        const candidateList = await getCandidates();
+        const candidateList = await getCandidates(votingId);
         setCandidates(candidateList);
 
-        // Ambil total votes
-        const total = await getTotalVotes();
+        const total = await getTotalVotes(votingId);
         setTotalVotes(total);
 
-        // Ambil waktu voting
         const contract = new ethers.Contract(contractAddress, contractABI, provider);
-        const start = await contract.votingStart();
-        const end = await contract.votingEnd();
+        const votingDetails = await contract.getVotingDetails(votingId);
+        const start = Number(votingDetails[1]);
+        const end = Number(votingDetails[2]);
 
-        setVotingStart(Number(start));
-        setVotingEnd(Number(end));
+        setVotingStart(start);
+        setVotingEnd(end);
       } catch (error) {
         console.error("Error fetching data:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [votingId]);
 
   const handleVote = async (candidateId: bigint | number) => {
     if (!votingStart || !votingEnd) {
-      alert("Data voting belum dimuat, coba lagi nanti.");
+      toast.error("Data voting belum dimuat, coba lagi nanti.");
       return;
     }
   
     const now = Math.floor(Date.now() / 1000);
     if (now < votingStart) {
-      alert(`Voting belum dimulai! Silakan tunggu hingga ${formatDate(votingStart)}.`);
+      toast.error(`Voting belum dimulai! Silakan tunggu hingga ${formatDate(votingStart)}.`);
       return;
     }
     if (now > votingEnd) {
-      alert("Voting sudah berakhir.");
+      toast.error("Voting sudah berakhir.");
+      return;
+    }
+
+    const voterAddress = (await getProvider().getSigner()).address;
+    const { isRegistered, hasVoted } = await checkVoterStatus(votingId, voterAddress);
+
+    if (!isRegistered) {
+      toast.error("Anda belum terdaftar sebagai pemilih!");
+      return;
+    }
+    if (hasVoted) {
+      toast.error("Anda sudah memilih sebelumnya!");
       return;
     }
   
@@ -89,6 +115,7 @@ export default function Vote() {
   
     try {
       const { approveSuccess, voteSuccess, approveTxHash, voteTxHash } = await voteCandidate(
+        votingId,
         Number(candidateId), 
         setApproveStatus, 
         setVoteStatus
@@ -98,41 +125,47 @@ export default function Vote() {
       if (voteTxHash) setVoteTxHash(voteTxHash);
   
       if (approveSuccess && voteSuccess) {
-        setVoteStatus("success"); // Tetap update status sukses, tapi tanpa menutup modal otomatis
+        setVoteStatus("success");
       }
     } catch (error) {
       console.error("Voting gagal:", error);
     }
   };
   
-  
-
   const formatDate = (timestamp: number | null) => {
-    if (!timestamp) return "Loading...";
+    if (!timestamp) return "Memuat...";
     return new Date(timestamp * 1000).toLocaleString();
   };
 
   const handleGetWinner = async () => {
     try {
-      const winnerData = await getWinner();
+      const winnerData = await getWinner(votingId);
       setWinner(winnerData);
       setIsWinnerModalOpen(true);
     } catch (error) {
       console.error("Error fetching winner:", error);
-      alert("Gagal mengambil pemenang.");
+      toast.error("Gagal mengambil pemenang.");
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <p>Memuat...</p>
+      </div>
+    );
+  }
 
   return (
     <>
       <Navbar />
       <div className="flex flex-col items-center justify-center min-h-screen p-8 pt-[85px]" style={{ backgroundImage: "url('/4.jpg')", minHeight: "100vh", backgroundSize: "cover", backgroundPosition: "center" }}>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">TOTAL VOTES : {totalVotes}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">TOTAL SUARA: {totalVotes}</h1>
         <p className="text-sm text-gray-700">
-          🕒 Voting Start: <strong>{formatDate(votingStart)}</strong>
+          🕒 Waktu Mulai Voting: <strong>{formatDate(votingStart)}</strong>
         </p>
         <p className="text-sm text-gray-700">
-          ⏳ Voting End: <strong>{formatDate(votingEnd)}</strong>
+          ⏳ Waktu Selesai Voting: <strong>{formatDate(votingEnd)}</strong>
         </p>
 
         <p className={`text-lg pt-2 font-semibold ${
@@ -143,13 +176,13 @@ export default function Vote() {
               onClick={handleGetWinner} 
               className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-700 transition"
             >
-              🎉 See Winner
+              🎉 Lihat Pemenang
             </button>
-          ) : Date.now() / 1000 < (votingStart || 0) ? "Voting Has Not Started Yet" 
-            : "Voting Is Ongoing"}
+          ) : Date.now() / 1000 < (votingStart || 0) ? "Voting Belum Dimulai" 
+            : "Voting Sedang Berlangsung"}
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-6 ">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-6">
           {candidates.map((candidate) => (
             <CandidateVoteCard
               key={candidate.id}
@@ -165,7 +198,6 @@ export default function Vote() {
         </div>
       </div>
 
-      {/* MODAL Transaction */}
       {isTransactionModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <motion.div
@@ -176,10 +208,9 @@ export default function Vote() {
             className="bg-white p-6 rounded-2xl shadow-xl w-96 text-left"
           >
             <h2 className="text-2xl font-bold flex items-center gap-2 justify-center">
-              📝 Voting Progress
+              📝 Progres Voting
             </h2>
 
-            {/* Step 1: Approving Token */}
             <div className="flex flex-col items-start mt-4 w-full">
               {approveStatus === "loading" && (
                 <motion.div 
@@ -188,12 +219,11 @@ export default function Vote() {
                   transition={{ duration: 0.5 }}
                   className="flex items-center gap-2 text-sm text-gray-700 font-medium"
                 >
-                  Approving Token...
+                  Menyetujui Token...
                   <div className="w-4 h-4 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
                 </motion.div>
               )}
 
-              {/* Loading Bar Tetap di Bawah */}
               {approveStatus === "loading" && (
                 <motion.div
                   initial={{ width: "0%" }}
@@ -205,7 +235,7 @@ export default function Vote() {
 
               {approveStatus === "success" && (
                 <div className="flex justify-between items-center w-full mt-2">
-                  <span className="text-green-500 text-lg">✅ Approved</span>
+                  <span className="text-green-500 text-lg">✅ Disetujui</span>
                   {approveTxHash && (
                     <a 
                       href={`https://sepolia.etherscan.io/tx/${approveTxHash}`} 
@@ -224,12 +254,11 @@ export default function Vote() {
                   onClick={() => handleVote(Number(selectedCandidate))} 
                   className="mt-2 text-red-500 underline hover:text-red-700 transition"
                 >
-                  Retry
+                  Coba Lagi
                 </button>
               )}
             </div>
 
-            {/* Step 2: Submitting Vote */}
             <div className="flex flex-col items-start mt-4 w-full">
               {voteStatus === "loading" && (
                 <motion.div 
@@ -238,12 +267,11 @@ export default function Vote() {
                   transition={{ duration: 0.5 }}
                   className="flex items-center gap-2 text-sm text-gray-700 font-medium"
                 >
-                  Submitting Vote...
+                  Mengirim Suara...
                   <div className="w-4 h-4 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
                 </motion.div>
               )}
 
-              {/* Loading Bar Tetap di Bawah */}
               {voteStatus === "loading" && (
                 <motion.div
                   initial={{ width: "0%" }}
@@ -255,7 +283,7 @@ export default function Vote() {
 
               {voteStatus === "success" && (
                 <div className="flex justify-between items-center w-full mt-2">
-                  <span className="text-green-500 text-lg">✅ Vote Submitted</span>
+                  <span className="text-green-500 text-lg">✅ Suara Terkirim</span>
                   {voteTxHash && (
                     <a 
                       href={`https://sepolia.etherscan.io/tx/${voteTxHash}`} 
@@ -271,15 +299,14 @@ export default function Vote() {
 
               {voteStatus === "failed" && (
                 <button 
-                  onClick={() => voteCandidate(Number(selectedCandidate), setApproveStatus, setVoteStatus)} 
+                  onClick={() => voteCandidate(votingId, Number(selectedCandidate), setApproveStatus, setVoteStatus)} 
                   className="mt-2 text-red-500 underline hover:text-red-700 transition"
                 >
-                  Retry
+                  Coba Lagi
                 </button>
               )}
             </div>
 
-            {/* Close Modal Button */}
             {voteStatus === "success" && approveStatus === "success" && (
               <motion.button
                 onClick={() => setIsTransactionModalOpen(false)}
@@ -287,61 +314,48 @@ export default function Vote() {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
               >
-                Done
+                Selesai
               </motion.button>
             )}
           </motion.div>
         </div>
       )}
 
-
-
-
-
-
-
-
-
-
-
-      {/* MODAL WINNER */}
       {isWinnerModalOpen && winner && (
         <>
-          {/* 🎉 Confetti Effect */}
           <Confetti
             width={windowSize.width}
             height={windowSize.height}
-            numberOfPieces={300} // Banyaknya confetti
-            recycle={true} // Hanya muncul sekali
-            gravity={0.2} // Kecepatan jatuh confetti
+            numberOfPieces={300}
+            recycle={true}
+            gravity={0.2}
           />
-        {/* Modal dengan Animasi */}
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.5 }} // Animasi awal (fade-in + zoom)
-            animate={{ opacity: 1, scale: 1 }} // Animasi setelah muncul
-            exit={{ opacity: 0, scale: 0.5 }} // Animasi saat ditutup
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md text-center"
-          >
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">🏆 The Winner</h2>
-            <img 
-              src={winner.photoUrl} 
-              alt={winner.name} 
-              className="w-32 h-32 object-cover rounded-full mx-auto border-4 border-yellow-500"
-            />
-            <h3 className="text-xl font-semibold mt-4">{winner.name}</h3>
-            <p className="text-gray-600">Total Votes: {winner.votes}</p>
-            <button 
-              onClick={() => setIsWinnerModalOpen(false)}
-              className="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
+          <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.5 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md text-center"
             >
-              Close
-            </button>
-          </motion.div>
-        </div> 
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">🏆 Pemenang</h2>
+              <img 
+                src={winner.photoUrl} 
+                alt={winner.name} 
+                className="w-32 h-32 object-cover rounded-full mx-auto border-4 border-yellow-500"
+              />
+              <h3 className="text-xl font-semibold mt-4">{winner.name}</h3>
+              <p className="text-gray-600">Total Suara: {winner.votes}</p>
+              <button 
+                onClick={() => setIsWinnerModalOpen(false)}
+                className="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
+              >
+                Tutup
+              </button>
+            </motion.div>
+          </div> 
         </>
       )}
     </>
   );
-};
+}
