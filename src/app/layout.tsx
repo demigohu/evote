@@ -6,7 +6,7 @@ import { WagmiProvider } from 'wagmi';
 import { RainbowKitProvider, type Locale } from '@rainbow-me/rainbowkit';
 import { config } from '@/utils/Wagmi';
 import { polygon, polygonAmoy } from "viem/chains";
-import Navbar from "./navbar/page";
+import Navbar from "../components/Navbar";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
