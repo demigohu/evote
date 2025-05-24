@@ -54,6 +54,20 @@ export default function AdminDashboard() {
         return;
       }
 
+      // Validasi timestamp
+      if (isNaN(startTimestamp) || isNaN(endTimestamp) || isNaN(regEndTimestamp)) {
+        toast.error('Format tanggal tidak valid.');
+        return;
+      }
+      if (endTimestamp <= startTimestamp) {
+        toast.error('Waktu selesai harus setelah waktu mulai.');
+        return;
+      }
+      if (regEndTimestamp > startTimestamp) {
+        toast.error('Waktu registrasi harus sebelum atau sama dengan waktu mulai voting.');
+        return;
+      }
+
       // Panggil fungsi createVoting dari useEVotingContract
       await createVoting(
         votingTitle,
@@ -73,9 +87,23 @@ export default function AdminDashboard() {
       setVotingStart('');
       setVotingEnd('');
       setRegistrationEnd('');
-    } catch (err) {
-      console.error(err);
-      toast.error('Gagal membuat voting.');
+    } catch (err: any) {
+      console.error('Error creating voting:', err);
+      if (err.message.includes('Hanya admin')) {
+        toast.error('Hanya admin yang dapat membuat voting.');
+      } else if (err.message.includes('Waktu selesai harus setelah waktu mulai')) {
+        toast.error('Waktu selesai harus setelah waktu mulai.');
+      } else if (err.message.includes('Waktu registrasi harus sebelum atau sama dengan waktu mulai voting')) {
+        toast.error('Waktu registrasi harus sebelum atau sama dengan waktu mulai voting.');
+      } else if (err.message.includes('Array data kandidat harus memiliki panjang yang sama')) {
+        toast.error('Array data kandidat harus memiliki panjang yang sama.');
+      } else if (err.message.includes('Minimal satu kandidat diperlukan')) {
+        toast.error('Minimal satu kandidat diperlukan.');
+      } else if (err.message.includes('Hanya EVoting yang dapat mengatur voting ID aktif')) {
+        toast.error('Kontrak VotingToken tidak mengenali kontrak EVoting ini sebagai pengirim yang sah.');
+      } else {
+        toast.error('Gagal membuat voting: ' + (err.message || 'Unknown error'));
+      }
     }
   };
 
@@ -91,9 +119,9 @@ export default function AdminDashboard() {
 
       toast.success('Pemilih berhasil didaftarkan!');
       setVoterAddress('');
-    } catch (err) {
-      console.error(err);
-      toast.error('Gagal mendaftarkan pemilih.');
+    } catch (err: any) {
+      console.error('Error registering voter:', err);
+      toast.error('Gagal mendaftarkan pemilih: ' + (err.message || 'Unknown error'));
     }
   };
 

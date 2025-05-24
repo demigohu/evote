@@ -13,11 +13,12 @@ const Navbar = dynamic(() => import('../../components/Navbar'), { ssr: false });
 
 export default function RegisterContent() {
   const [email, setEmail] = useState('');
+  const [hasClaimed, setHasClaimed] = useState(false);
 
   const { address } = useAccount();
   const searchParams = useSearchParams();
   const votingId = Number(searchParams.get('votingId')) || 1;
-  const { isVoterRegistered, registerVoter } = useEVotingContract();
+  const { isVoterRegistered, registerVoter, claimVotingTokens } = useEVotingContract();
 
   // Ambil status registrasi langsung dari isVoterRegistered
   const isRegistered = address ? isVoterRegistered(votingId, address) : false;
@@ -48,6 +49,22 @@ export default function RegisterContent() {
     }
   };
 
+  const handleClaimTokens = async () => {
+    try {
+      await claimVotingTokens(votingId);
+      toast.success('Token berhasil diklaim!');
+      setHasClaimed(true);
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error('Error claiming tokens:', error);
+        toast.error('Gagal mengklaim token: ' + error.message);
+      } else {
+        console.error('Unknown error:', error);
+        toast.error('Unknown error');
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -75,9 +92,24 @@ export default function RegisterContent() {
           </h2>
 
           {isRegistered ? (
-            <p className="text-green-500 text-center mb-4">
-              Anda sudah terdaftar untuk voting ini.
-            </p>
+            <div className="text-center space-y-4">
+              <p className="text-green-500">
+                Anda sudah terdaftar untuk voting ini.
+              </p>
+              {!hasClaimed && (
+                <button
+                  onClick={handleClaimTokens}
+                  className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition"
+                >
+                  Klaim Token
+                </button>
+              )}
+              {hasClaimed && (
+                <p className="text-green-500">
+                  Token sudah diklaim untuk voting ini.
+                </p>
+              )}
+            </div>
           ) : (
             <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
               <div>

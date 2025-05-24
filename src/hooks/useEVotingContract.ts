@@ -1,6 +1,7 @@
 import { useAccount, useReadContract, useWriteContract } from 'wagmi';
 import EVotingABI from '../lib/abis/EVoting.json';
-import { EVOTING_ADDRESS } from '../lib/contractAddresses';
+import VotingTokenABI from '../lib/abis/VotingToken.json';
+import { EVOTING_ADDRESS, VOTINGTOKEN_ADDRESS } from '../lib/contractAddresses';
 import { VotingDetails, Candidate, Winner } from '../types/voting';
 import { keccak256, toHex } from 'viem';
 
@@ -163,6 +164,28 @@ export const useEVotingContract = () => {
     return data ?? false;
   };
 
+  // Memeriksa allowance token pengguna untuk kontrak EVoting
+  const checkAllowance = (owner: string) => {
+    const { data } = useReadContract({
+      address: VOTINGTOKEN_ADDRESS,
+      abi: VotingTokenABI.abi,
+      functionName: 'allowance',
+      args: [owner, EVOTING_ADDRESS],
+    }) as { data: bigint | undefined };
+
+    return data ? Number(data) : 0;
+  };
+
+  // Meng-approve token untuk kontrak EVoting
+  const approveVotingTokens = async (amount: string) => {
+    await writeContractAsync({
+      address: VOTINGTOKEN_ADDRESS,
+      abi: VotingTokenABI.abi,
+      functionName: 'approve',
+      args: [EVOTING_ADDRESS, amount],
+    });
+  };
+
   // Mengecek apakah pemilih sudah terdaftar (isRegistered)
   const isRegistered = (votingId: number, voterAddress: string) => {
     const { data } = useReadContract({
@@ -238,6 +261,16 @@ export const useEVotingContract = () => {
     });
   };
 
+  // Fungsi untuk mengklaim token voting
+  const claimVotingTokens = async (votingId: number) => {
+    await writeContractAsync({
+      address: VOTINGTOKEN_ADDRESS,
+      abi: VotingTokenABI.abi,
+      functionName: 'claimVotingTokens',
+      args: [votingId],
+    });
+  };
+
   return {
     admin,
     votingCount: Number(votingCount ?? 0),
@@ -257,10 +290,13 @@ export const useEVotingContract = () => {
     getAllWinners,
     isVoterRegistered,
     hasVoterVoted,
+    checkAllowance,
+    approveVotingTokens,
     isRegistered,
     getVoterEmailHash,
     registerVoter,
     castVote,
     createVoting,
+    claimVotingTokens,
   };
 };

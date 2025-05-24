@@ -12,27 +12,18 @@ import { motion } from 'framer-motion';
 import Confetti from 'react-confetti';
 
 export default function VotingRoundDetail() {
-  const [votingDetails, setVotingDetails] = useState<{
-    title: string;
-    votingStart: number;
-    votingEnd: number;
-    candidatesCount: number;
-    totalVotes: number;
-  } | null>(null);
-  const [candidates, setCandidates] = useState<any[]>([]);
   const [winner, setWinner] = useState<{ id: number; name: string; votes: number; photoUrl: string } | null>(null);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [isWinnerModalOpen, setIsWinnerModalOpen] = useState(false);
-  const [voteStatus, setVoteStatus] = useState<'idle' | 'loading' | 'success' | 'failed'>('idle');
+  const [voteStatus, setVoteStatus] = useState<'idle' | 'approving' | 'loading' | 'success' | 'failed'>('idle');
   const [selectedCandidate, setSelectedCandidate] = useState<number | null>(null);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   const [voteTxHash, setVoteTxHash] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   const { address } = useAccount();
   const { id } = useParams();
   const votingId = Number(id);
-  const { getVotingDetails, getAllCandidates, getCandidate, castVote, getWinner, isVoterRegistered, hasVoterVoted } = useEVotingContract();
+  const { getVotingDetails, getAllCandidates, castVote, getWinner, isVoterRegistered, hasVoterVoted, checkAllowance, approveVotingTokens } = useEVotingContract();
 
   // Ambil detail voting langsung menggunakan getVotingDetails
   const votingDetailsData = getVotingDetails(votingId);
@@ -40,14 +31,15 @@ export default function VotingRoundDetail() {
   // Ambil daftar kandidat langsung menggunakan getAllCandidates
   const candidatesData = getAllCandidates(votingId);
 
-  // Ambil voteCount untuk setiap kandidat
-  const candidatesWithVoteCount = candidatesData.map((candidate) => {
-    const candidateDetails = getCandidate(votingId, candidate.id);
-    return {
-      ...candidate,
-      voteCount: candidateDetails ? candidateDetails.voteCount : 0,
-    };
-  });
+  // Ambil status registrasi dan voting langsung di tubuh komponen
+  const isRegistered = address ? isVoterRegistered(votingId, address) : false;
+  const hasVoted = address ? hasVoterVoted(votingId, address) : false;
+
+  // Ambil allowance token pengguna untuk kontrak EVoting
+  const allowance = address ? checkAllowance(address) : 0;
+
+  // Tentukan status loading berdasarkan keberadaan data
+  const isLoading = !votingDetailsData || !candidatesData;
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -62,27 +54,18 @@ export default function VotingRoundDetail() {
     }
   }, []);
 
-  useEffect(() => {
-    // Setelah votingDetails dan candidates tersedia, kita bisa menonaktifkan loading
-    if (votingDetailsData && candidatesWithVoteCount) {
-      setVotingDetails(votingDetailsData);
-      setCandidates(candidatesWithVoteCount);
-      setIsLoading(false);
-    }
-  }, [votingDetailsData, candidatesWithVoteCount]);
-
   const handleVote = async (candidateId: number) => {
-    if (!votingDetails?.votingStart || !votingDetails?.votingEnd) {
+    if (!votingDetailsData?.votingStart || !votingDetailsData?.votingEnd) {
       toast.error('Data voting belum dimuat, coba lagi nanti.');
       return;
     }
 
     const now = Math.floor(Date.now() / 1000);
-    if (now < votingDetails.votingStart) {
-      toast.error(`Voting belum dimulai! Silakan tunggu hingga ${formatDate(votingDetails.votingStart)}.`);
+    if (now < votingDetailsData.votingStart) {
+      toast.error(`Voting belum dimulai! Silakan tunggu hingga ${formatDate(votingDetailsData.votingStart)}.`);
       return;
     }
-    if (now > votingDetails.votingEnd) {
+    if (now > votingDetailsData.votingEnd) {
       toast.error('Voting sudah berakhir.');
       return;
     }
@@ -91,9 +74,6 @@ export default function VotingRoundDetail() {
       toast.error('Silakan hubungkan wallet Anda terlebih dahulu.');
       return;
     }
-
-    const isRegistered = isVoterRegistered(votingId, address);
-    const hasVoted = hasVoterVoted(votingId, address);
 
     if (!isRegistered) {
       toast.error('Anda belum terdaftar sebagai pemilih!');
@@ -110,13 +90,23 @@ export default function VotingRoundDetail() {
     setVoteTxHash(null);
 
     try {
+      // Periksa allowance token
+      const requiredAllowance = 1 * 10 ** 18; // 1 token dengan 18 desimal
+      if (allowance < requiredAllowance) {
+        setVoteStatus('approving');
+        toast.info('Mendapatkan persetujuan token...');
+        await approveVotingTokens(requiredAllowance.toString());
+        toast.success('Token berhasil disetujui!');
+      }
+
+      setVoteStatus('loading');
       await castVote(votingId, candidateId);
       setVoteStatus('success');
       toast.success('Suara Anda berhasil dikirim!');
     } catch (error) {
       console.error('Voting gagal:', error);
       setVoteStatus('failed');
-      toast.error('Gagal mengirim suara.');
+      toast.error('Gagal mengirim suara: ' + ((error as Error).message || 'Unknown error'));
     }
   };
 
@@ -165,28 +155,28 @@ export default function VotingRoundDetail() {
           backgroundPosition: 'center',
         }}
       >
-        {votingDetails && (
+        {votingDetailsData && (
           <>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">TOTAL SUARA: {votingDetails.totalVotes}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">TOTAL SUARA: {votingDetailsData.totalVotes}</h1>
             <p className="text-sm text-gray-700">
-              🕒 Waktu Mulai Voting: <strong>{formatDate(votingDetails.votingStart)}</strong>
+              🕒 Waktu Mulai Voting: <strong>{formatDate(votingDetailsData.votingStart)}</strong>
             </p>
             <p className="text-sm text-gray-700">
-              ⏳ Waktu Selesai Voting: <strong>{formatDate(votingDetails.votingEnd)}</strong>
+              ⏳ Waktu Selesai Voting: <strong>{formatDate(votingDetailsData.votingEnd)}</strong>
             </p>
             <p
               className={`text-lg pt-2 font-semibold ${
-                Date.now() / 1000 > votingDetails.votingEnd ? 'text-red-500' : 'text-green-500'
+                Date.now() / 1000 > votingDetailsData.votingEnd ? 'text-red-500' : 'text-green-500'
               }`}
             >
-              {Date.now() / 1000 > votingDetails.votingEnd ? (
+              {Date.now() / 1000 > votingDetailsData.votingEnd ? (
                 <button
                   onClick={handleGetWinner}
                   className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-700 transition"
                 >
                   🎉 Lihat Pemenang
                 </button>
-              ) : Date.now() / 1000 < votingDetails.votingStart ? (
+              ) : Date.now() / 1000 < votingDetailsData.votingStart ? (
                 'Voting Belum Dimulai'
               ) : (
                 'Voting Sedang Berlangsung'
@@ -196,7 +186,7 @@ export default function VotingRoundDetail() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-6">
-          {candidates.map((candidate) => (
+          {candidatesData.map((candidate) => (
             <VotingCard
               key={candidate.id}
               id={candidate.id}
@@ -225,6 +215,18 @@ export default function VotingRoundDetail() {
             <h2 className="text-2xl font-bold flex items-center gap-2 justify-center">📝 Progres Voting</h2>
 
             <div className="flex flex-col items-start mt-4 w-full">
+              {voteStatus === 'approving' && (
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="flex items-center gap-2 text-sm text-gray-700 font-medium"
+                >
+                  Menunggu persetujuan token...
+                  <div className="w-4 h-4 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                </motion.div>
+              )}
+
               {voteStatus === 'loading' && (
                 <motion.div
                   initial={{ opacity: 0, x: -10 }}
@@ -237,7 +239,7 @@ export default function VotingRoundDetail() {
                 </motion.div>
               )}
 
-              {voteStatus === 'loading' && (
+              {(voteStatus === 'approving' || voteStatus === 'loading') && (
                 <motion.div
                   initial={{ width: '0%' }}
                   animate={{ width: '100%' }}
