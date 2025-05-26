@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useAccount } from 'wagmi';
+import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import Navbar from '../../../components/Navbar';
 import VotingCard from '../../../components/VotingCard';
 import { useEVotingContract } from '../../../hooks/useEVotingContract';
@@ -15,9 +15,19 @@ export default function VotingRoundDetail() {
   const [winner, setWinner] = useState<{ id: number; name: string; votes: number; photoUrl: string } | null>(null);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [isWinnerModalOpen, setIsWinnerModalOpen] = useState(false);
-  const [voteStatus, setVoteStatus] = useState<'idle' | 'approving' | 'loading' | 'success' | 'failed'>('idle');
+  const [voteStatus, setVoteStatus] = useState<
+  | 'idle'
+  | 'approving'
+  | 'approve_failed'
+  | 'approved'
+  | 'voting'
+  | 'vote_failed'
+  | 'success'
+  | 'loading'
+>('idle');
   const [selectedCandidate, setSelectedCandidate] = useState<number | null>(null);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+  const [allowanceTxHash, setAllowanceTxHash] = useState<string | null>(null);
   const [voteTxHash, setVoteTxHash] = useState<string | null>(null);
 
   const { address } = useAccount();
@@ -38,6 +48,16 @@ export default function VotingRoundDetail() {
   // Ambil allowance token pengguna untuk kontrak EVoting
   const allowance = address ? checkAllowance(address) : 0;
 
+  // Menunggu konfirmasi transaksi allowance
+  const { data: allowanceReceipt, isLoading: isAllowancePending, error: allowanceError } = useWaitForTransactionReceipt({
+    hash: allowanceTxHash as `0x${string}` | undefined,
+  });
+
+  // Menunggu konfirmasi transaksi vote
+  const { data: voteReceipt, isLoading: isVotePending, error: voteError } = useWaitForTransactionReceipt({
+    hash: voteTxHash as `0x${string}` | undefined,
+  });
+
   // Tentukan status loading berdasarkan keberadaan data
   const isLoading = !votingDetailsData || !candidatesData;
 
@@ -53,6 +73,55 @@ export default function VotingRoundDetail() {
       return () => window.removeEventListener('resize', handleResize);
     }
   }, []);
+
+  useEffect(() => {
+    if (allowanceReceipt && voteStatus === 'approving') {
+      setVoteStatus('approved');
+      toast.success('Persetujuan token berhasil dikonfirmasi!');
+    } else if (allowanceError && voteStatus === 'approving') {
+      setVoteStatus('approve_failed');
+      toast.error('Gagal mendapatkan persetujuan token: ' + (allowanceError.message || 'Unknown error'));
+    }
+  }, [allowanceReceipt, allowanceError, voteStatus]);
+
+  useEffect(() => {
+    if (voteReceipt && voteStatus === 'voting') {
+      setVoteStatus('success');
+      toast.success('Suara Anda berhasil dikirim!');
+    } else if (voteError && voteStatus === 'voting') {
+      setVoteStatus('vote_failed');
+      toast.error('Gagal mengirim suara: ' + (voteError.message || 'Unknown error'));
+    }
+  }, [voteReceipt, voteError, voteStatus]);
+
+  const handleAllowance = async () => {
+    try {
+      setVoteStatus('approving');
+      toast.info('Mendapatkan persetujuan token...');
+      const requiredAllowance = 1 * 10 ** 18; // 1 token dengan 18 desimal
+      const allowanceHash = await approveVotingTokens(requiredAllowance.toString());
+      setAllowanceTxHash(allowanceHash);
+    } catch (error) {
+      console.error('Persetujuan token gagal:', error);
+      setVoteStatus('approve_failed');
+      toast.error('Gagal mendapatkan persetujuan token: ' + ((error as Error).message || 'Unknown error'));
+    }
+  };
+
+  const handleCastVote = async () => {
+    if (!selectedCandidate) return;
+
+    try {
+      setVoteStatus('voting');
+      toast.info('Mengirim suara...');
+      const voteHash = await castVote(votingId, selectedCandidate);
+      setVoteTxHash(voteHash);
+    } catch (error) {
+      console.error('Voting gagal:', error);
+      setVoteStatus('vote_failed');
+      toast.error('Gagal mengirim suara: ' + ((error as Error).message || 'Unknown error'));
+    }
+  };
 
   const handleVote = async (candidateId: number) => {
     if (!votingDetailsData?.votingStart || !votingDetailsData?.votingEnd) {
@@ -87,26 +156,14 @@ export default function VotingRoundDetail() {
     setSelectedCandidate(candidateId);
     setIsTransactionModalOpen(true);
     setVoteStatus('loading');
+    setAllowanceTxHash(null);
     setVoteTxHash(null);
 
-    try {
-      // Periksa allowance token
-      const requiredAllowance = 1 * 10 ** 18; // 1 token dengan 18 desimal
-      if (allowance < requiredAllowance) {
-        setVoteStatus('approving');
-        toast.info('Mendapatkan persetujuan token...');
-        await approveVotingTokens(requiredAllowance.toString());
-        toast.success('Token berhasil disetujui!');
-      }
-
-      setVoteStatus('loading');
-      await castVote(votingId, candidateId);
-      setVoteStatus('success');
-      toast.success('Suara Anda berhasil dikirim!');
-    } catch (error) {
-      console.error('Voting gagal:', error);
-      setVoteStatus('failed');
-      toast.error('Gagal mengirim suara: ' + ((error as Error).message || 'Unknown error'));
+    const requiredAllowance = 1 * 10 ** 18; // 1 token dengan 18 desimal
+    if (allowance < requiredAllowance) {
+      await handleAllowance();
+    } else {
+      setVoteStatus('approved');
     }
   };
 
@@ -215,31 +272,92 @@ export default function VotingRoundDetail() {
             <h2 className="text-2xl font-bold flex items-center gap-2 justify-center">📝 Progres Voting</h2>
 
             <div className="flex flex-col items-start mt-4 w-full">
-              {voteStatus === 'approving' && (
+              {(voteStatus === 'loading' || voteStatus === 'approving') && (
                 <motion.div
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.5 }}
                   className="flex items-center gap-2 text-sm text-gray-700 font-medium"
                 >
-                  Menunggu persetujuan token...
+                  {voteStatus === 'approving' ? 'Menunggu persetujuan token...' : 'Mempersiapkan transaksi...'}
                   <div className="w-4 h-4 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
                 </motion.div>
               )}
 
-              {voteStatus === 'loading' && (
+              {voteStatus === 'approve_failed' && (
+                <div className="flex justify-between items-center w-full mt-2">
+                  <span className="text-red-500 text-lg">❌ Persetujuan Token Gagal</span>
+                  {allowanceTxHash && (
+                    <a
+                      href={`https://polygon.blockscout.com/tx/${allowanceTxHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 text-md hover:underline"
+                    >
+                      🔗
+                    </a>
+                  )}
+                  <button
+                    onClick={handleAllowance}
+                    className="mt-2 text-blue-500 underline hover:text-blue-700 transition"
+                  >
+                    Coba Lagi
+                  </button>
+                </div>
+              )}
+
+              {voteStatus === 'approved' && (
                 <motion.div
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.5 }}
                   className="flex items-center gap-2 text-sm text-gray-700 font-medium"
                 >
-                  Mengirim Suara...
+                  Persetujuan token selesai, melanjutkan ke voting...
+                  <button
+                    onClick={handleCastVote}
+                    className="mt-2 bg-blue-500 text-white px-4 py-1 rounded-lg hover:bg-blue-700 transition"
+                  >
+                    Lanjutkan Voting
+                  </button>
+                </motion.div>
+              )}
+
+              {voteStatus === 'voting' && (
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="flex items-center gap-2 text-sm text-gray-700 font-medium"
+                >
+                  Mengirim suara...
                   <div className="w-4 h-4 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
                 </motion.div>
               )}
 
-              {(voteStatus === 'approving' || voteStatus === 'loading') && (
+              {voteStatus === 'vote_failed' && (
+                <div className="flex justify-between items-center w-full mt-2">
+                  <span className="text-red-500 text-lg">❌ Gagal Mengirim Suara</span>
+                  {voteTxHash && (
+                    <a
+                      href={`https://polygon.blockscout.com/tx/${voteTxHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 text-md hover:underline"
+                    >
+                      🔗
+                    </a>
+                  )}
+                  <button
+                    onClick={handleCastVote}
+                    className="mt-2 text-blue-500 underline hover:text-blue-700 transition"
+                  >
+                    Coba Lagi
+                  </button>
+                </div>
+              )}
+
+              {(voteStatus === 'approving' || voteStatus === 'voting') && (
                 <motion.div
                   initial={{ width: '0%' }}
                   animate={{ width: '100%' }}
@@ -249,28 +367,34 @@ export default function VotingRoundDetail() {
               )}
 
               {voteStatus === 'success' && (
-                <div className="flex justify-between items-center w-full mt-2">
-                  <span className="text-green-500 text-lg">✅ Suara Terkirim</span>
-                  {voteTxHash && (
-                    <a
-                      href={`https://sepolia.etherscan.io/tx/${voteTxHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-500 text-md hover:underline"
-                    >
-                      🔗
-                    </a>
-                  )}
+                <div className="flex flex-col gap-2 w-full mt-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-green-500 text-lg">✅ Persetujuan Token Berhasil</span>
+                    {allowanceTxHash && (
+                      <a
+                        href={`https://polygon.blockscout.com/tx/${allowanceTxHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 text-md hover:underline"
+                      >
+                        🔗
+                      </a>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-green-500 text-lg">✅ Suara Terkirim</span>
+                    {voteTxHash && (
+                      <a
+                        href={`https://polygon.blockscout.com/tx/${voteTxHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 text-md hover:underline"
+                      >
+                        🔗
+                      </a>
+                    )}
+                  </div>
                 </div>
-              )}
-
-              {voteStatus === 'failed' && (
-                <button
-                  onClick={() => handleVote(selectedCandidate!)}
-                  className="mt-2 text-red-500 underline hover:text-red-700 transition"
-                >
-                  Coba Lagi
-                </button>
               )}
             </div>
 

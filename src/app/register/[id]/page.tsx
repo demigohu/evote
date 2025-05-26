@@ -1,13 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useEVotingContract } from '../../../hooks/useEVotingContract';
+import { useVotingTokenContract } from '../../../hooks/useVotingTokenContract';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { supabase } from '../../../lib/supabase';
+import { keccak256, toHex } from 'viem';
+import debounce from 'lodash/debounce';
 
 // Nonaktifkan SSR untuk Navbar
 const Navbar = dynamic(() => import('../../../components/Navbar'), { ssr: false });
@@ -15,33 +18,33 @@ const Navbar = dynamic(() => import('../../../components/Navbar'), { ssr: false 
 export default function Register() {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
-  const [hasClaimed, setHasClaimed] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isEmailValid, setIsEmailValid] = useState(false);
   const [isOtpSent, setIsOtpSent] = useState(false);
+  const [isOtpSending, setIsOtpSending] = useState(false);
   const [isOtpVerified, setIsOtpVerified] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
   const [votingStatus, setVotingStatus] = useState<'notStarted' | 'ongoing' | 'ended' | 'registrationClosed' | null>(null);
-  const [hasRegisteredInOtherRound, setHasRegisteredInOtherRound] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(true);
   const [currentAction, setCurrentAction] = useState<'register' | 'claim' | null>(null);
   const [toastId, setToastId] = useState<string | number | null>(null);
-  const [isDataLoading, setIsDataLoading] = useState(true); // State baru untuk loading data
+  const [isEmailUsedInRound, setIsEmailUsedInRound] = useState(false);
 
   const { address } = useAccount();
   const { id } = useParams();
   const votingId = Number(id);
-  const { isVoterRegistered, registerVoter, claimVotingTokens, getVotingDetails, hasRegisteredInAnyRound } = useEVotingContract();
+  const { isVoterRegistered, registerVoter, claimVotingTokens, getVotingDetails } = useEVotingContract();
+  const { hasClaimed: checkHasClaimed } = useVotingTokenContract();
 
-  // Ambil status registrasi tanpa kondisi untuk votingId saat ini
+  // Ambil status registrasi dan klaim
   const isRegisteredRaw = address ? isVoterRegistered(votingId, address) : false;
-  const [isRegistered, setIsRegistered] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(isRegisteredRaw);
+  const hasClaimedRaw = address ? checkHasClaimed(votingId, address) : false;
+  const [hasClaimed, setHasClaimed] = useState(hasClaimedRaw);
 
-  // Ambil status apakah pengguna sudah terdaftar di salah satu voting round
-  const hasRegisteredInAnyRoundRaw = address ? hasRegisteredInAnyRound(address) : false;
-
-  // Ambil detail voting di level atas tubuh komponen
+  // Ambil detail voting
   const votingDetails = getVotingDetails(votingId);
 
   // Menunggu konfirmasi transaksi
@@ -49,85 +52,114 @@ export default function Register() {
     hash: transactionHash as `0x${string}` | undefined,
   });
 
-  // Set isHydrated to true after the component mounts on the client
+  // Set isHydrated to true after component mounts
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
-  // Perbarui isRegistered dan hasRegisteredInOtherRound saat data tersedia
+  // Perbarui status registrasi, klaim, dan voting
   useEffect(() => {
     if (!isHydrated || !address) return;
 
-    // Periksa apakah data sudah tersedia
-    if (isRegisteredRaw !== undefined && hasRegisteredInAnyRoundRaw !== undefined && votingDetails !== null) {
+    if (isRegisteredRaw !== undefined && hasClaimedRaw !== undefined && votingDetails !== null) {
       setIsDataLoading(false);
       setIsRegistered(isRegisteredRaw);
+      setHasClaimed(hasClaimedRaw);
 
-      // Periksa status voting untuk votingId saat ini
-      const now = Math.floor(Date.now() / 1000);
-      if (now > votingDetails.registrationEnd) {
-        setVotingStatus('registrationClosed');
-      } else if (now > votingDetails.votingEnd) {
-        setVotingStatus('ended');
-      } else if (now > votingDetails.votingStart) {
-        setVotingStatus('ongoing');
-      } else {
-        setVotingStatus('notStarted');
-      }
-
-      // Periksa apakah pengguna sudah terdaftar di voting round lain
-      if (hasRegisteredInAnyRoundRaw && !isRegisteredRaw) {
-        setHasRegisteredInOtherRound(true);
+      // Periksa status voting
+      if (votingDetails) {
+        const now = Math.floor(Date.now() / 1000);
+        if (now > votingDetails.registrationEnd) {
+          setVotingStatus('registrationClosed');
+        } else if (now > votingDetails.votingEnd) {
+          setVotingStatus('ended');
+        } else if (now > votingDetails.votingStart) {
+          setVotingStatus('ongoing');
+        } else {
+          setVotingStatus('notStarted');
+        }
       }
     }
-  }, [address, isHydrated, votingId, votingDetails, hasRegisteredInAnyRoundRaw, isRegisteredRaw]);
+  }, [address, isHydrated, votingId, votingDetails, isRegisteredRaw, hasClaimedRaw]);
 
-  // Perbarui isRegistered dan lanjutkan ke klaim token setelah transaksi registrasi dikonfirmasi
+  // Tangani konfirmasi transaksi
   useEffect(() => {
-    if (receipt && currentAction === 'register') {
-      setIsRegistered(true);
-      setIsRegistering(false);
-      if (toastId !== null) {
-        toast.dismiss(toastId);
-      }
-      toast.success('Registrasi berhasil! Melanjutkan untuk klaim token...');
-      setToastId(null);
-      setTransactionHash(null);
+    if (receipt) {
+      if (currentAction === 'register') {
+        setIsRegistered(true);
+        setIsRegistering(false);
+        if (toastId !== null) {
+          toast.dismiss(toastId);
+        }
+        toast.success('Registrasi berhasil! Silakan klaim token Anda.');
+        setToastId(null);
+        setTransactionHash(null);
 
-      // Otomatis lanjutkan ke klaim token
-      handleClaimTokens();
-    } else if (receipt && currentAction === 'claim') {
-      setIsClaiming(false);
-      setHasClaimed(true);
-      if (toastId !== null) {
-        toast.dismiss(toastId);
-      }
-      toast.success('Token berhasil diklaim!');
-      setToastId(null);
-      setTransactionHash(null);
+        // Simpan email ke used_emails di Supabase
+        const emailHash = keccak256(toHex(email));
+        const saveEmailUsage = async () => {
+          const { error } = await supabase
+            .from('used_emails')
+            .insert({
+              email_hash: emailHash,
+              voting_id: votingId,
+            });
 
-      // Simpan status hasClaimed ke localStorage
-      if (address) {
-        const claimKey = `hasClaimed_${address}_${votingId}`;
-        localStorage.setItem(claimKey, 'true');
+          if (error) {
+            console.error('Error saving email usage:', error);
+          }
+        };
+        saveEmailUsage();
+      } else if (currentAction === 'claim') {
+        setIsClaiming(false);
+        setHasClaimed(true);
+        if (toastId !== null) {
+          toast.dismiss(toastId);
+        }
+        toast.success('Token berhasil diklaim!');
+        setToastId(null);
+        setTransactionHash(null);
       }
     }
-  }, [receipt, currentAction, address, votingId, toastId]);
+  }, [receipt, currentAction, address, votingId, toastId, email]);
 
-  // Periksa status hasClaimed saat komponen dimuat dari localStorage
+  // Periksa apakah email sudah digunakan
+  const checkEmailUsage = useCallback(async (emailToCheck: string) => {
+    const emailHash = keccak256(toHex(emailToCheck));
+    const { data, error } = await supabase
+      .from('used_emails')
+      .select('email_hash')
+      .eq('email_hash', emailHash)
+      .eq('voting_id', votingId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error checking email usage:', error);
+      return;
+    }
+
+    setIsEmailUsedInRound(!!data);
+    if (data) {
+      toast.error('Email ini sudah digunakan di voting round ini.');
+    }
+  }, [votingId]);
+
+  // Debounce checkEmailUsage
+  const debouncedCheckEmailUsage = useCallback(
+    debounce((email: string) => {
+      checkEmailUsage(email);
+    }, 500),
+    [checkEmailUsage]
+  );
+
+  // Periksa email saat berubah
   useEffect(() => {
-    if (!address || !isHydrated) return;
+    if (!email || !isHydrated) return;
+    debouncedCheckEmailUsage(email);
+    return () => debouncedCheckEmailUsage.cancel();
+  }, [email, isHydrated, debouncedCheckEmailUsage]);
 
-    const claimKey = `hasClaimed_${address}_${votingId}`;
-    const storedHasClaimed = localStorage.getItem(claimKey);
-    if (storedHasClaimed === 'true') {
-      setHasClaimed(true);
-    }
-  }, [address, isHydrated, votingId]);
-
-  // Tentukan status loading berdasarkan keberadaan data
-  const loading = !isHydrated || !address || isDataLoading || votingStatus === null;
-
+  // Validasi email
   const validateEmail = async () => {
     try {
       const { data, error } = await supabase
@@ -146,21 +178,18 @@ export default function Register() {
       await sendOtp();
     } catch (error) {
       console.error('Error validating email:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error('Gagal memvalidasi email: ' + errorMessage);
+      toast.error('Gagal memvalidasi email.');
     }
   };
 
+  // Kirim OTP
   const sendOtp = async () => {
     try {
-      // Generate OTP (6 digit)
+      setIsOtpSending(true);
       const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-
-      // Set OTP expiration (5 minutes from now)
       const now = new Date();
       const expiresAt = new Date(now.getTime() + 5 * 60 * 1000).toISOString();
 
-      // Simpan OTP ke Supabase
       const { error: insertError } = await supabase
         .from('otps')
         .insert({
@@ -170,35 +199,31 @@ export default function Register() {
         });
 
       if (insertError) {
-        throw new Error('Gagal menyimpan OTP: ' + insertError.message);
+        throw new Error('Gagal menyimpan OTP.');
       }
 
-      // Kirim OTP ke email menggunakan Gmail SMTP
       const res = await fetch('/api/send-otp-gmail', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          otp: generatedOtp,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp: generatedOtp, votingId }),
       });
 
+      const response = await res.json();
       if (!res.ok) {
-        const { error } = await res.json();
-        throw new Error(error || 'Gagal mengirim OTP.');
+        throw new Error(response.error || 'Gagal mengirim OTP.');
       }
 
       setIsOtpSent(true);
       toast.success('OTP telah dikirim ke email Anda!');
     } catch (error) {
       console.error('Error sending OTP:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error('Gagal mengirim OTP: ' + errorMessage);
+      toast.error('Gagal mengirim OTP.');
+    } finally {
+      setIsOtpSending(false);
     }
   };
 
+  // Verifikasi OTP
   const verifyOtp = async () => {
     try {
       const { data, error } = await supabase
@@ -214,18 +239,16 @@ export default function Register() {
         return;
       }
 
-      // Hapus OTP setelah verifikasi
       await supabase.from('otps').delete().eq('id', data.id);
-
       setIsOtpVerified(true);
       toast.success('Email berhasil diverifikasi!');
     } catch (error) {
       console.error('Error verifying OTP:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error('Gagal memverifikasi OTP: ' + errorMessage);
+      toast.error('Gagal memverifikasi OTP.');
     }
   };
 
+  // Tangani registrasi
   const handleRegister = async () => {
     try {
       if (!isOtpVerified) {
@@ -238,15 +261,17 @@ export default function Register() {
         return;
       }
 
+      if (isEmailUsedInRound) {
+        toast.error('Email ini sudah digunakan di voting round ini.');
+        return;
+      }
+
       setIsRegistering(true);
       const newToastId = toast.loading('Menunggu transaksi terkonfirmasi...');
       setToastId(newToastId);
       setCurrentAction('register');
 
-      // Panggil fungsi registerVoter dari useEVotingContract
       const hash = await registerVoter(votingId, email);
-
-      // Simpan hash transaksi untuk ditunggu konfirmasi
       setTransactionHash(hash);
     } catch (error) {
       console.error('Error registering voter:', error);
@@ -255,11 +280,11 @@ export default function Register() {
         toast.dismiss(toastId);
       }
       setToastId(null);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error('Gagal mendaftar sebagai pemilih: ' + errorMessage);
+      toast.error('Gagal mendaftar sebagai pemilih.');
     }
   };
 
+  // Tangani klaim token
   const handleClaimTokens = async () => {
     try {
       if (!address) {
@@ -272,10 +297,7 @@ export default function Register() {
       setToastId(newToastId);
       setCurrentAction('claim');
 
-      // Panggil fungsi claimVotingTokens dari useEVotingContract
       const hash = await claimVotingTokens(votingId);
-
-      // Simpan hash transaksi untuk ditunggu konfirmasi
       setTransactionHash(hash);
     } catch (error) {
       console.error('Error claiming tokens:', error);
@@ -284,12 +306,11 @@ export default function Register() {
         toast.dismiss(toastId);
       }
       setToastId(null);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error('Gagal mengklaim token: ' + errorMessage);
+      toast.error('Gagal mengklaim token.');
     }
   };
 
-  if (loading) {
+  if (!isHydrated || !address || isDataLoading || votingStatus === null) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <p>Memuat...</p>
@@ -302,7 +323,7 @@ export default function Register() {
       <Navbar />
       <ToastContainer position="top-right" autoClose={3000} />
       <div
-        className="flex flex-col items-center justify-center min-h-screen p-8 pt-[85px]"
+        className="flex extent-col items-center justify-center min-h-screen p-8 pt-[85px]"
         style={{
           backgroundImage: "url('/4.jpg')",
           minHeight: '100vh',
@@ -320,7 +341,11 @@ export default function Register() {
               <p className="text-green-500">
                 Anda sudah terdaftar untuk voting ini.
               </p>
-              {!hasClaimed && (
+              {hasClaimed ? (
+                <p className="text-green-500">
+                  Token sudah diklaim untuk voting ini.
+                </p>
+              ) : (
                 <button
                   onClick={handleClaimTokens}
                   className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition"
@@ -328,11 +353,6 @@ export default function Register() {
                 >
                   {isClaiming || isTransactionPending ? 'Memproses...' : 'Klaim Token'}
                 </button>
-              )}
-              {hasClaimed && (
-                <p className="text-green-500">
-                  Token sudah diklaim untuk voting ini.
-                </p>
               )}
             </div>
           ) : votingStatus === 'registrationClosed' ? (
@@ -345,12 +365,6 @@ export default function Register() {
             <div className="text-center space-y-4">
               <p className="text-red-500">
                 Voting sudah {votingStatus === 'ongoing' ? 'berlangsung' : 'selesai'}, pendaftaran tidak lagi diperbolehkan.
-              </p>
-            </div>
-          ) : hasRegisteredInOtherRound ? (
-            <div className="text-center space-y-4">
-              <p className="text-red-500">
-                Anda sudah terdaftar di voting round lain.
               </p>
             </div>
           ) : (
@@ -373,9 +387,10 @@ export default function Register() {
               {!isOtpSent ? (
                 <button
                   onClick={validateEmail}
-                  className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600"
+                  className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition"
+                  disabled={isEmailUsedInRound || isOtpSending}
                 >
-                  Kirim OTP
+                  {isOtpSending ? 'Mengirim...' : 'Kirim OTP'}
                 </button>
               ) : !isOtpVerified ? (
                 <>
@@ -395,6 +410,7 @@ export default function Register() {
                   <button
                     onClick={verifyOtp}
                     className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600"
+                    disabled={isEmailUsedInRound}
                   >
                     Verifikasi OTP
                   </button>
@@ -403,7 +419,7 @@ export default function Register() {
                 <button
                   onClick={handleRegister}
                   className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600"
-                  disabled={isRegistering || isTransactionPending}
+                  disabled={isRegistering || isTransactionPending || isEmailUsedInRound}
                 >
                   {isRegistering || isTransactionPending ? 'Mendaftar...' : 'Daftar'}
                 </button>

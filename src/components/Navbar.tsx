@@ -28,9 +28,9 @@ export default function Navbar() {
           <Link href="/result" className="text-white text-sm font-bold font-[Poppins] capitalize">
             Hasil Voting
           </Link>
-          <Link href="/register" className="text-white text-sm font-medium font-[Poppins] capitalize">
+          {/* <Link href="/register" className="text-white text-sm font-medium font-[Poppins] capitalize">
             Registrasi
-          </Link>
+          </Link> */}
           {isAdmin && (
             <Link href="/admin-dashboard" className="text-white text-sm font-medium font-[Poppins] capitalize">
               Dashboard Admin
@@ -67,9 +67,9 @@ export default function Navbar() {
           <Link href="/result" className="text-sm font-bold font-[Poppins] capitalize">
             Hasil Voting
           </Link>
-          <Link href="/register" className="text-sm font-medium font-[Poppins] capitalize">
+          {/* <Link href="/register" className="text-sm font-medium font-[Poppins] capitalize">
             Registrasi
-          </Link>
+          </Link> */}
           {isAdmin && (
             <Link href="/admin-dashboard" className="text-sm font-medium font-[Poppins] capitalize">
               Dashboard Admin

@@ -4,6 +4,7 @@ import VotingTokenABI from '../lib/abis/VotingToken.json';
 import { EVOTING_ADDRESS, VOTINGTOKEN_ADDRESS } from '../lib/contractAddresses';
 import { VotingDetails, Candidate, Winner } from '../types/voting';
 import { keccak256, toHex } from 'viem';
+import { useMemo } from 'react';
 
 export const useEVotingContract = () => {
   const { address } = useAccount();
@@ -24,7 +25,7 @@ export const useEVotingContract = () => {
   }) as { data: bigint | undefined };
 
   // Mengambil semua voting details
-  const { data: allVotingDetails } = useReadContract({
+  const { data: allVotingDetailsRaw } = useReadContract({
     address: EVOTING_ADDRESS,
     abi: EVotingABI.abi,
     functionName: 'getAllVotingDetails',
@@ -36,6 +37,19 @@ export const useEVotingContract = () => {
     abi: EVotingABI.abi,
     functionName: 'getAllWinners',
   }) as { data: any[] | undefined };
+
+  // Gunakan useMemo untuk mencegah pembuatan array baru setiap render
+  const allVotingDetails = useMemo(() => {
+    return (allVotingDetailsRaw || []).map((voting: any) => ({
+      id: Number(voting.id),
+      title: voting.title,
+      votingStart: Number(voting.votingStart),
+      votingEnd: Number(voting.votingEnd),
+      registrationEnd: Number(voting.registrationEnd),
+      candidatesCount: Number(voting.candidatesCount),
+      totalVotes: Number(voting.totalVotes),
+    })) as VotingDetails[];
+  }, [allVotingDetailsRaw]);
 
   // Fungsi untuk mengambil detail voting berdasarkan votingId
   const getVotingDetails = (votingId: number) => {
@@ -147,18 +161,6 @@ export const useEVotingContract = () => {
       abi: EVotingABI.abi,
       functionName: 'isVoterRegistered',
       args: [votingId, voterAddress],
-    }) as { data: boolean | undefined };
-
-    return data ?? false;
-  };
-
-  // Mengecek apakah pengguna sudah terdaftar di salah satu voting round
-  const hasRegisteredInAnyRound = (voterAddress: string) => {
-    const { data } = useReadContract({
-      address: EVOTING_ADDRESS,
-      abi: EVotingABI.abi,
-      functionName: 'hasRegisteredInAnyRound',
-      args: [voterAddress],
     }) as { data: boolean | undefined };
 
     return data ?? false;
@@ -291,22 +293,13 @@ export const useEVotingContract = () => {
   return {
     admin,
     votingCount: Number(votingCount ?? 0),
-    allVotingDetails: (allVotingDetails || []).map((voting: any) => ({
-      id: Number(voting.id),
-      title: voting.title,
-      votingStart: Number(voting.votingStart),
-      votingEnd: Number(voting.votingEnd),
-      registrationEnd: Number(voting.registrationEnd),
-      candidatesCount: Number(voting.candidatesCount),
-      totalVotes: Number(voting.totalVotes),
-    })) as VotingDetails[],
+    allVotingDetails,
     getVotingDetails,
     getAllCandidates,
     getCandidate,
     getWinner,
     getAllWinners,
     isVoterRegistered,
-    hasRegisteredInAnyRound,
     hasVoterVoted,
     checkAllowance,
     approveVotingTokens,

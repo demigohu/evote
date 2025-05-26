@@ -15,10 +15,9 @@ export default function AdminDashboard() {
   const [candidates, setCandidates] = useState([
     { name: '', photoUrl: '', resume: '', vision: '', mission: '' },
   ]);
-  const [voterAddress, setVoterAddress] = useState('');
 
   const { address } = useAccount();
-  const { admin, registerVoter, createVoting } = useEVotingContract();
+  const { admin, createVoting } = useEVotingContract();
   const [isAdminUser, setIsAdminUser] = useState(false);
 
   // Memeriksa apakah pengguna adalah admin
@@ -107,24 +106,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleRegister = async () => {
-    try {
-      if (!voterAddress) {
-        toast.error('Alamat pemilih harus diisi.');
-        return;
-      }
-
-      // Panggil fungsi registerVoter dari useEVotingContract
-      await registerVoter(1, voterAddress); // Asumsikan votingId = 1
-
-      toast.success('Pemilih berhasil didaftarkan!');
-      setVoterAddress('');
-    } catch (err: any) {
-      console.error('Error registering voter:', err);
-      toast.error('Gagal mendaftarkan pemilih: ' + (err.message || 'Unknown error'));
-    }
-  };
-
   if (!isAdminUser) {
     return (
       <>
@@ -145,7 +126,7 @@ export default function AdminDashboard() {
       <Navbar />
       <ToastContainer position="top-right" autoClose={3000} />
       <div
-        className="flex justify-center items-center min-h-screen"
+        className="flex justify-center items-center min-h-screen p-8 pt-[85px]"
         style={{
           backgroundImage: "url('/4.jpg')",
           minHeight: '100vh',
@@ -153,95 +134,126 @@ export default function AdminDashboard() {
           backgroundPosition: 'center',
         }}
       >
-        <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-lg">
+        <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-4xl">
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-6">Buat Voting</h2>
 
           <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-            <input
-              type="text"
-              placeholder="Judul Voting"
-              value={votingTitle}
-              onChange={(e) => setVotingTitle(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md"
-            />
-            <input
-              type="datetime-local"
-              placeholder="Waktu Mulai Voting"
-              value={votingStart}
-              onChange={(e) => setVotingStart(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md"
-            />
-            <input
-              type="datetime-local"
-              placeholder="Waktu Selesai Voting"
-              value={votingEnd}
-              onChange={(e) => setVotingEnd(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md"
-            />
-            <input
-              type="datetime-local"
-              placeholder="Waktu Selesai Registrasi"
-              value={registrationEnd}
-              onChange={(e) => setRegistrationEnd(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md"
-            />
+            <div className="flex flex-col space-y-2">
+              <label className="text-sm font-medium text-gray-700">Judul Voting</label>
+              <input
+                type="text"
+                placeholder="Judul Voting"
+                value={votingTitle}
+                onChange={(e) => setVotingTitle(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+
+            <div className="flex flex-col md:flex-row md:space-x-4 space-y-2 md:space-y-0">
+              <div className="flex-1">
+                <label className="text-sm font-medium text-gray-700">Waktu Mulai Voting</label>
+                <input
+                  type="datetime-local"
+                  value={votingStart}
+                  onChange={(e) => setVotingStart(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-medium text-gray-700">Waktu Selesai Voting</label>
+                <input
+                  type="datetime-local"
+                  value={votingEnd}
+                  onChange={(e) => setVotingEnd(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-medium text-gray-700">Waktu Selesai Registrasi</label>
+                <input
+                  type="datetime-local"
+                  value={registrationEnd}
+                  onChange={(e) => setRegistrationEnd(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
 
             {candidates.map((candidate, index) => (
-              <div key={index} className="space-y-2 border p-4 rounded-md">
-                <h3 className="text-lg font-semibold">Kandidat {index + 1}</h3>
-                <input
-                  type="text"
-                  placeholder="Nama Kandidat"
-                  value={candidate.name}
-                  onChange={(e) => {
-                    const newCandidates = [...candidates];
-                    newCandidates[index].name = e.target.value;
-                    setCandidates(newCandidates);
-                  }}
-                  className="w-full p-2 border border-gray-300 rounded-md"
-                />
-                <input
-                  type="text"
-                  placeholder="URL Foto"
-                  value={candidate.photoUrl}
-                  onChange={(e) => {
-                    const newCandidates = [...candidates];
-                    newCandidates[index].photoUrl = e.target.value;
-                    setCandidates(newCandidates);
-                  }}
-                  className="w-full p-2 border border-gray-300 rounded-md"
-                />
-                <input
-                  type="text"
-                  placeholder="Resume"
-                  value={candidate.resume}
-                  onChange={(e) => {
-                    const newCandidates = [...candidates];
-                    newCandidates[index].resume = e.target.value;
-                    setCandidates(newCandidates);
-                  }}
-                  className="w-full p-2 border border-gray-300 rounded-md"
-                />
-                <textarea
-                  placeholder="Visi"
-                  value={candidate.vision}
-                  onChange={(e) => {
-                    const newCandidates = [...candidates];
-                    newCandidates[index].vision = e.target.value;
-                    setCandidates(newCandidates);
-                  }}
-                  className="w-full p-2 border border-gray-300 rounded-md h-24"
-                />
-                <textarea
-                  placeholder="Misi"
-                  value={candidate.mission}
-                  onChange={(e) => {
-                    const newCandidates = [...candidates];
-                    newCandidates[index].mission = e.target.value;
-                    setCandidates(newCandidates);
-                  }}
-                  className="w-full p-2 border border-gray-300 rounded-md h-24"
-                />
+              <div key={index} className="border p-4 rounded-md">
+                <h3 className="text-lg font-semibold mb-2">Kandidat {index + 1}</h3>
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="text-sm font-medium text-gray-700">Nama Kandidat</label>
+                    <input
+                      type="text"
+                      placeholder="Nama Kandidat"
+                      value={candidate.name}
+                      onChange={(e) => {
+                        const newCandidates = [...candidates];
+                        newCandidates[index].name = e.target.value;
+                        setCandidates(newCandidates);
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="text-sm font-medium text-gray-700">URL Foto</label>
+                    <input
+                      type="text"
+                      placeholder="URL Foto"
+                      value={candidate.photoUrl}
+                      onChange={(e) => {
+                        const newCandidates = [...candidates];
+                        newCandidates[index].photoUrl = e.target.value;
+                        setCandidates(newCandidates);
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="text-sm font-medium text-gray-700">Resume</label>
+                    <input
+                      type="text"
+                      placeholder="Resume"
+                      value={candidate.resume}
+                      onChange={(e) => {
+                        const newCandidates = [...candidates];
+                        newCandidates[index].resume = e.target.value;
+                        setCandidates(newCandidates);
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-4 mt-2">
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="text-sm font-medium text-gray-700">Visi</label>
+                    <textarea
+                      placeholder="Visi"
+                      value={candidate.vision}
+                      onChange={(e) => {
+                        const newCandidates = [...candidates];
+                        newCandidates[index].vision = e.target.value;
+                        setCandidates(newCandidates);
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded-md h-24"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="text-sm font-medium text-gray-700">Misi</label>
+                    <textarea
+                      placeholder="Misi"
+                      value={candidate.mission}
+                      onChange={(e) => {
+                        const newCandidates = [...candidates];
+                        newCandidates[index].mission = e.target.value;
+                        setCandidates(newCandidates);
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded-md h-24"
+                    />
+                  </div>
+                </div>
               </div>
             ))}
 
@@ -258,22 +270,6 @@ export default function AdminDashboard() {
               className="w-full bg-indigo-500 text-white py-2 rounded-lg hover:bg-indigo-600"
             >
               Buat Voting
-            </button>
-          </form>
-
-          <form className="space-y-4 pt-10" onSubmit={(e) => e.preventDefault()}>
-            <input
-              type="text"
-              placeholder="Alamat Pemilih untuk Didaftarkan"
-              value={voterAddress}
-              onChange={(e) => setVoterAddress(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md"
-            />
-            <button
-              onClick={handleRegister}
-              className="w-full bg-indigo-500 text-white py-2 rounded-lg hover:bg-indigo-600"
-            >
-              Daftarkan Pemilih
             </button>
           </form>
         </div>
