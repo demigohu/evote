@@ -1,4 +1,4 @@
-import { useAccount, useReadContract, useWriteContract } from 'wagmi';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import EVotingABI from '../lib/abis/EVoting.json';
 import VotingTokenABI from '../lib/abis/VotingToken.json';
 import { EVOTING_ADDRESS, VOTINGTOKEN_ADDRESS } from '../lib/contractAddresses';
@@ -152,6 +152,18 @@ export const useEVotingContract = () => {
     return data ?? false;
   };
 
+  // Mengecek apakah pengguna sudah terdaftar di salah satu voting round
+  const hasRegisteredInAnyRound = (voterAddress: string) => {
+    const { data } = useReadContract({
+      address: EVOTING_ADDRESS,
+      abi: EVotingABI.abi,
+      functionName: 'hasRegisteredInAnyRound',
+      args: [voterAddress],
+    }) as { data: boolean | undefined };
+
+    return data ?? false;
+  };
+
   // Mengecek apakah pemilih sudah memilih
   const hasVoterVoted = (votingId: number, voterAddress: string) => {
     const { data } = useReadContract({
@@ -178,12 +190,13 @@ export const useEVotingContract = () => {
 
   // Meng-approve token untuk kontrak EVoting
   const approveVotingTokens = async (amount: string) => {
-    await writeContractAsync({
+    const hash = await writeContractAsync({
       address: VOTINGTOKEN_ADDRESS,
       abi: VotingTokenABI.abi,
       functionName: 'approve',
       args: [EVOTING_ADDRESS, amount],
     });
+    return hash;
   };
 
   // Mengecek apakah pemilih sudah terdaftar (isRegistered)
@@ -213,22 +226,24 @@ export const useEVotingContract = () => {
   // Fungsi untuk mendaftar sebagai pemilih
   const registerVoter = async (votingId: number, email: string) => {
     const emailHash = keccak256(toHex(email));
-    await writeContractAsync({
+    const hash = await writeContractAsync({
       address: EVOTING_ADDRESS,
       abi: EVotingABI.abi,
       functionName: 'selfRegister',
       args: [votingId, emailHash],
     });
+    return hash; // Kembalikan hash transaksi
   };
 
   // Fungsi untuk memilih kandidat
   const castVote = async (votingId: number, candidateId: number) => {
-    await writeContractAsync({
+    const hash = await writeContractAsync({
       address: EVOTING_ADDRESS,
       abi: EVotingABI.abi,
       functionName: 'vote',
       args: [votingId, candidateId],
     });
+    return hash;
   };
 
   // Fungsi untuk membuat voting baru
@@ -243,7 +258,7 @@ export const useEVotingContract = () => {
     votingEnd: number,
     registrationEnd: number
   ) => {
-    await writeContractAsync({
+    const hash = await writeContractAsync({
       address: EVOTING_ADDRESS,
       abi: EVotingABI.abi,
       functionName: 'createVoting',
@@ -259,16 +274,18 @@ export const useEVotingContract = () => {
         registrationEnd,
       ],
     });
+    return hash;
   };
 
   // Fungsi untuk mengklaim token voting
   const claimVotingTokens = async (votingId: number) => {
-    await writeContractAsync({
+    const hash = await writeContractAsync({
       address: VOTINGTOKEN_ADDRESS,
       abi: VotingTokenABI.abi,
       functionName: 'claimVotingTokens',
       args: [votingId],
     });
+    return hash;
   };
 
   return {
@@ -289,6 +306,7 @@ export const useEVotingContract = () => {
     getWinner,
     getAllWinners,
     isVoterRegistered,
+    hasRegisteredInAnyRound,
     hasVoterVoted,
     checkAllowance,
     approveVotingTokens,

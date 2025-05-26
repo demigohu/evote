@@ -73,7 +73,7 @@ export default function VotingRound() {
                 Lihat Kandidat
               </Link>
               <Link
-                href={`/register?votingId=${voting.id}`}
+                href={`/register/${voting.id}`}
                 className="mt-2 ml-2 inline-block bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
               >
                 Daftar untuk Vote
