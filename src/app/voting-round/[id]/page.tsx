@@ -5,26 +5,35 @@ import { useParams } from 'next/navigation';
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import Navbar from '../../../components/Navbar';
 import VotingCard from '../../../components/VotingCard';
-import { useEVotingContract } from '../../../hooks/useEVotingContract';
+import {
+  useEVotingContract,
+  useVotingDetails,
+  useAllCandidates,
+  useIsVoterRegistered,
+  useHasVoterVoted,
+  useCheckAllowance,
+  useWinner,
+} from '../../../hooks/useEVotingContract';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { motion } from 'framer-motion';
 import Confetti from 'react-confetti';
+import Image from 'next/image';
 
 export default function VotingRoundDetail() {
   const [winner, setWinner] = useState<{ id: number; name: string; votes: number; photoUrl: string } | null>(null);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [isWinnerModalOpen, setIsWinnerModalOpen] = useState(false);
   const [voteStatus, setVoteStatus] = useState<
-  | 'idle'
-  | 'approving'
-  | 'approve_failed'
-  | 'approved'
-  | 'voting'
-  | 'vote_failed'
-  | 'success'
-  | 'loading'
->('idle');
+    | 'idle'
+    | 'approving'
+    | 'approve_failed'
+    | 'approved'
+    | 'voting'
+    | 'vote_failed'
+    | 'success'
+    | 'loading'
+  >('idle');
   const [selectedCandidate, setSelectedCandidate] = useState<number | null>(null);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   const [allowanceTxHash, setAllowanceTxHash] = useState<string | null>(null);
@@ -33,28 +42,23 @@ export default function VotingRoundDetail() {
   const { address } = useAccount();
   const { id } = useParams();
   const votingId = Number(id);
-  const { getVotingDetails, getAllCandidates, castVote, getWinner, isVoterRegistered, hasVoterVoted, checkAllowance, approveVotingTokens } = useEVotingContract();
+  const { castVote, approveVotingTokens } = useEVotingContract();
 
-  // Ambil detail voting langsung menggunakan getVotingDetails
-  const votingDetailsData = getVotingDetails(votingId);
-
-  // Ambil daftar kandidat langsung menggunakan getAllCandidates
-  const candidatesData = getAllCandidates(votingId);
-
-  // Ambil status registrasi dan voting langsung di tubuh komponen
-  const isRegistered = address ? isVoterRegistered(votingId, address) : false;
-  const hasVoted = address ? hasVoterVoted(votingId, address) : false;
-
-  // Ambil allowance token pengguna untuk kontrak EVoting
-  const allowance = address ? checkAllowance(address) : 0;
+  // Gunakan custom hooks untuk mengambil data
+  const votingDetailsData = useVotingDetails(votingId);
+  const candidatesData = useAllCandidates(votingId);
+  const isRegistered = useIsVoterRegistered(votingId, address ?? '');
+  const hasVoted = useHasVoterVoted(votingId, address ?? '');
+  const allowance = useCheckAllowance(address ?? '');
+  const winnerData = useWinner(votingId); // Pindahkan ke level atas
 
   // Menunggu konfirmasi transaksi allowance
-  const { data: allowanceReceipt, isLoading: isAllowancePending, error: allowanceError } = useWaitForTransactionReceipt({
+  const { data: allowanceReceipt, error: allowanceError } = useWaitForTransactionReceipt({
     hash: allowanceTxHash as `0x${string}` | undefined,
   });
 
   // Menunggu konfirmasi transaksi vote
-  const { data: voteReceipt, isLoading: isVotePending, error: voteError } = useWaitForTransactionReceipt({
+  const { data: voteReceipt, error: voteError } = useWaitForTransactionReceipt({
     hash: voteTxHash as `0x${string}` | undefined,
   });
 
@@ -173,7 +177,6 @@ export default function VotingRoundDetail() {
 
   const handleGetWinner = async () => {
     try {
-      const winnerData = await getWinner(votingId);
       if (winnerData) {
         setWinner({
           id: winnerData.id,
@@ -424,9 +427,11 @@ export default function VotingRoundDetail() {
               className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md text-center"
             >
               <h2 className="text-2xl font-bold text-gray-800 mb-4">🏆 Pemenang</h2>
-              <img
+              <Image
                 src={winner.photoUrl}
                 alt={winner.name}
+                width={128}
+                height={128}
                 className="w-32 h-32 object-cover rounded-full mx-auto border-4 border-yellow-500"
               />
               <h3 className="text-xl font-semibold mt-4">{winner.name}</h3>

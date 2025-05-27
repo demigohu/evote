@@ -4,8 +4,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { useEVotingContract } from '../../../hooks/useEVotingContract';
-import { useVotingTokenContract } from '../../../hooks/useVotingTokenContract';
+import {
+  useEVotingContract,
+  useVotingDetails,
+  useIsVoterRegistered,
+} from '../../../hooks/useEVotingContract';
+import { useHasClaimed } from '../../../hooks/useVotingTokenContract';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { supabase } from '../../../lib/supabase';
@@ -19,7 +23,6 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [isHydrated, setIsHydrated] = useState(false);
-  const [isEmailValid, setIsEmailValid] = useState(false);
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isOtpSending, setIsOtpSending] = useState(false);
   const [isOtpVerified, setIsOtpVerified] = useState(false);
@@ -35,17 +38,14 @@ export default function Register() {
   const { address } = useAccount();
   const { id } = useParams();
   const votingId = Number(id);
-  const { isVoterRegistered, registerVoter, claimVotingTokens, getVotingDetails } = useEVotingContract();
-  const { hasClaimed: checkHasClaimed } = useVotingTokenContract();
+  const { registerVoter, claimVotingTokens } = useEVotingContract();
 
-  // Ambil status registrasi dan klaim
-  const isRegisteredRaw = address ? isVoterRegistered(votingId, address) : false;
-  const [isRegistered, setIsRegistered] = useState(isRegisteredRaw);
-  const hasClaimedRaw = address ? checkHasClaimed(votingId, address) : false;
-  const [hasClaimed, setHasClaimed] = useState(hasClaimedRaw);
-
-  // Ambil detail voting
-  const votingDetails = getVotingDetails(votingId);
+  // Gunakan custom hooks untuk mengambil data
+  const isRegistered = useIsVoterRegistered(votingId, address ?? '');
+  const [isRegisteredState, setIsRegisteredState] = useState(isRegistered);
+  const hasClaimed = useHasClaimed(votingId, address ?? '');
+  const [hasClaimedState, setHasClaimedState] = useState(hasClaimed);
+  const votingDetails = useVotingDetails(votingId);
 
   // Menunggu konfirmasi transaksi
   const { data: receipt, isLoading: isTransactionPending } = useWaitForTransactionReceipt({
@@ -61,10 +61,10 @@ export default function Register() {
   useEffect(() => {
     if (!isHydrated || !address) return;
 
-    if (isRegisteredRaw !== undefined && hasClaimedRaw !== undefined && votingDetails !== null) {
+    if (isRegistered !== undefined && hasClaimed !== undefined && votingDetails !== null) {
       setIsDataLoading(false);
-      setIsRegistered(isRegisteredRaw);
-      setHasClaimed(hasClaimedRaw);
+      setIsRegisteredState(isRegistered);
+      setHasClaimedState(hasClaimed);
 
       // Periksa status voting
       if (votingDetails) {
@@ -80,13 +80,13 @@ export default function Register() {
         }
       }
     }
-  }, [address, isHydrated, votingId, votingDetails, isRegisteredRaw, hasClaimedRaw]);
+  }, [address, isHydrated, votingId, votingDetails, isRegistered, hasClaimed]);
 
   // Tangani konfirmasi transaksi
   useEffect(() => {
     if (receipt) {
       if (currentAction === 'register') {
-        setIsRegistered(true);
+        setIsRegisteredState(true);
         setIsRegistering(false);
         if (toastId !== null) {
           toast.dismiss(toastId);
@@ -112,7 +112,7 @@ export default function Register() {
         saveEmailUsage();
       } else if (currentAction === 'claim') {
         setIsClaiming(false);
-        setHasClaimed(true);
+        setHasClaimedState(true);
         if (toastId !== null) {
           toast.dismiss(toastId);
         }
@@ -142,7 +142,7 @@ export default function Register() {
     if (data) {
       toast.error('Email ini sudah digunakan di voting round ini.');
     }
-  }, [votingId]);
+  }, [votingId, toast]); // Tambahkan toast ke dependensi
 
   // Debounce checkEmailUsage
   const debouncedCheckEmailUsage = useCallback(
@@ -170,11 +170,9 @@ export default function Register() {
 
       if (error || !data) {
         toast.error('Email tidak terdaftar.');
-        setIsEmailValid(false);
         return;
       }
 
-      setIsEmailValid(true);
       await sendOtp();
     } catch (error) {
       console.error('Error validating email:', error);
@@ -256,7 +254,7 @@ export default function Register() {
         return;
       }
 
-      if (isRegistered) {
+      if (isRegisteredState) {
         toast.error('Anda sudah terdaftar untuk voting ini.');
         return;
       }
@@ -336,12 +334,12 @@ export default function Register() {
             Registrasi Pemilih untuk Voting ID: {votingId}
           </h2>
 
-          {isRegistered ? (
+          {isRegisteredState ? (
             <div className="text-center space-y-4">
               <p className="text-green-500">
                 Anda sudah terdaftar untuk voting ini.
               </p>
-              {hasClaimed ? (
+              {hasClaimedState ? (
                 <p className="text-green-500">
                   Token sudah diklaim untuk voting ini.
                 </p>

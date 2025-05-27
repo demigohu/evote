@@ -1,11 +1,22 @@
-import { useAccount, useReadContract, useWriteContract } from 'wagmi';
+import { useReadContract, useWriteContract } from 'wagmi';
 import VotingTokenABI from '../lib/abis/VotingToken.json';
 import EVotingABI from '../lib/abis/EVoting.json';
 import { VOTINGTOKEN_ADDRESS } from '../lib/contractAddresses';
 
-export const useVotingTokenContract = () => {
-  const { address } = useAccount();
+// Custom hook untuk mengecek apakah pemilih sudah mengklaim token
+export const useHasClaimed = (votingId: number, userAddress: string) => {
+  const { data } = useReadContract({
+    address: VOTINGTOKEN_ADDRESS,
+    abi: VotingTokenABI.abi,
+    functionName: 'hasClaimed',
+    args: [votingId, userAddress],
+  }) as { data: boolean | undefined };
 
+  return data ?? false;
+};
+
+// Hook utama untuk kontrak VotingToken
+export const useVotingTokenContract = () => {
   // Mengambil status klaim
   const { data: claimActive } = useReadContract({
     address: VOTINGTOKEN_ADDRESS,
@@ -26,18 +37,6 @@ export const useVotingTokenContract = () => {
     abi: VotingTokenABI.abi,
     functionName: 'activeVotingId',
   }) as { data: bigint | undefined };
-
-  // Mengecek apakah pemilih sudah mengklaim token
-  const hasClaimed = (votingId: number, userAddress: string) => {
-    const { data } = useReadContract({
-      address: VOTINGTOKEN_ADDRESS,
-      abi: VotingTokenABI.abi,
-      functionName: 'hasClaimed',
-      args: [votingId, userAddress],
-    }) as { data: boolean | undefined };
-
-    return data ?? false;
-  };
 
   // Fungsi untuk mengklaim token voting
   const { writeContract: claimVotingTokens } = useWriteContract();
@@ -115,7 +114,6 @@ export const useVotingTokenContract = () => {
     claimActive: claimActive ?? false,
     claimAmount: Number(claimAmount ?? 0),
     activeVotingId: Number(activeVotingId ?? 0),
-    hasClaimed,
     claimTokens,
     setClaimStatus,
     updateClaimAmount,

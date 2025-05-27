@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import { useEVotingContract } from '../../hooks/useEVotingContract';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -18,7 +19,7 @@ export default function Result() {
   const loading = !winners;
 
   // Format data pemenang
-  const results = winners.map((winner: any) => ({
+  const results = winners.map((winner) => ({
     votingId: winner.votingId,
     title: winner.votingTitle,
     winner: {
@@ -66,10 +67,15 @@ export default function Result() {
               >
                 <h2 className="text-lg font-bold text-gray-800 mb-2">{result.title}</h2>
                 <p className="text-sm text-gray-600 mb-4">Voting ID: {result.votingId}</p>
-                <img
+                <Image
                   src={result.winner.photoUrl}
                   alt={result.winner.name}
+                  width={128}
+                  height={128}
                   className="w-32 h-32 object-cover rounded-full mx-auto border-4 border-yellow-500 mb-4"
+                  onError={() => console.error(`Failed to load image for ${result.winner.name}`)}
+                  placeholder="blur"
+                  blurDataURL="/placeholder-image.jpg" // Ganti dengan URL placeholder yang sesuai
                 />
                 <h3 className="text-xl font-semibold text-gray-800">{result.winner.name}</h3>
                 <p className="text-gray-600">Total Suara: {result.winner.voteCount}</p>

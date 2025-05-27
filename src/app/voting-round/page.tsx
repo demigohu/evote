@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Navbar from '../../components/Navbar';
 import { useEVotingContract } from '../../hooks/useEVotingContract';
+import { VotingDetails } from '../../types/voting';
 
 export default function VotingRound() {
   const [isLoading, setIsLoading] = useState(true);
-  const [validVotingDetails, setValidVotingDetails] = useState<any[]>([]);
+  const [validVotingDetails, setValidVotingDetails] = useState<VotingDetails[]>([]);
   const { allVotingDetails } = useEVotingContract();
 
   useEffect(() => {

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Image from 'next/image';
 
 interface VotingCardProps {
   id: number;
@@ -18,7 +19,16 @@ const VotingCard: React.FC<VotingCardProps> = ({ id, name, photoUrl, vision, mis
 
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-lg flex flex-col items-center">
-      <img src={photoUrl} alt={name} className="w-full h-100 object-cover rounded-xl mb-4" />
+      <Image
+        src={photoUrl}
+        alt={name}
+        width={400}
+        height={400}
+        className="w-full h-100 object-cover rounded-xl mb-4"
+        onError={() => console.error(`Failed to load image for ${name}`)}
+        placeholder="blur"
+        blurDataURL="/placeholder-image.jpg" // Ganti dengan URL placeholder yang sesuai
+      />
       <h2 className="text-lg font-bold text-gray-800">{name}</h2>
 
       <button

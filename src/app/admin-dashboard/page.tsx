@@ -86,22 +86,26 @@ export default function AdminDashboard() {
       setVotingStart('');
       setVotingEnd('');
       setRegistrationEnd('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creating voting:', err);
-      if (err.message.includes('Hanya admin')) {
-        toast.error('Hanya admin yang dapat membuat voting.');
-      } else if (err.message.includes('Waktu selesai harus setelah waktu mulai')) {
-        toast.error('Waktu selesai harus setelah waktu mulai.');
-      } else if (err.message.includes('Waktu registrasi harus sebelum atau sama dengan waktu mulai voting')) {
-        toast.error('Waktu registrasi harus sebelum atau sama dengan waktu mulai voting.');
-      } else if (err.message.includes('Array data kandidat harus memiliki panjang yang sama')) {
-        toast.error('Array data kandidat harus memiliki panjang yang sama.');
-      } else if (err.message.includes('Minimal satu kandidat diperlukan')) {
-        toast.error('Minimal satu kandidat diperlukan.');
-      } else if (err.message.includes('Hanya EVoting yang dapat mengatur voting ID aktif')) {
-        toast.error('Kontrak VotingToken tidak mengenali kontrak EVoting ini sebagai pengirim yang sah.');
+      if (err instanceof Error) {
+        if (err.message.includes('Hanya admin')) {
+          toast.error('Hanya admin yang dapat membuat voting.');
+        } else if (err.message.includes('Waktu selesai harus setelah waktu mulai')) {
+          toast.error('Waktu selesai harus setelah waktu mulai.');
+        } else if (err.message.includes('Waktu registrasi harus sebelum atau sama dengan waktu mulai voting')) {
+          toast.error('Waktu registrasi harus sebelum atau sama dengan waktu mulai voting.');
+        } else if (err.message.includes('Array data kandidat harus memiliki panjang yang sama')) {
+          toast.error('Array data kandidat harus memiliki panjang yang sama.');
+        } else if (err.message.includes('Minimal satu kandidat diperlukan')) {
+          toast.error('Minimal satu kandidat diperlukan.');
+        } else if (err.message.includes('Hanya EVoting yang dapat mengatur voting ID aktif')) {
+          toast.error('Kontrak VotingToken tidak mengenali kontrak EVoting ini sebagai pengirim yang sah.');
+        } else {
+          toast.error('Gagal membuat voting: ' + (err.message || 'Unknown error'));
+        }
       } else {
-        toast.error('Gagal membuat voting: ' + (err.message || 'Unknown error'));
+        toast.error('Gagal membuat voting: Terjadi kesalahan yang tidak diketahui.');
       }
     }
   };

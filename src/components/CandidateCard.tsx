@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Image from 'next/image';
 import { Candidate } from '../types/voting';
 
 interface CandidateCardProps extends Omit<Candidate, 'id' | 'voteCount'> {
@@ -11,7 +12,16 @@ const CandidateCard: React.FC<CandidateCardProps> = ({ name, photoUrl, vision, m
 
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-lg flex flex-col">
-      <img src={photoUrl} alt={name} className="w-full h-100 object-cover rounded-xl mb-4" />
+      <Image
+        src={photoUrl}
+        alt={name}
+        width={400}
+        height={400}
+        className="w-full h-100 object-cover rounded-xl mb-4"
+        onError={() => console.error(`Failed to load image for ${name}`)}
+        placeholder="blur"
+        blurDataURL="/placeholder-image.jpg" // Ganti dengan URL placeholder yang sesuai
+      />
       <h2 className="text-lg font-bold text-gray-800 text-center">{name}</h2>
 
       <div className="text-left mt-3 flex-grow">
