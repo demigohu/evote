@@ -5,6 +5,13 @@ import { useAccount } from "wagmi";
 import Link from "next/link";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useEVotingContract } from "../hooks/useEVotingContract";
+import { Yellowtail } from "next/font/google";
+
+  const yellowtail = Yellowtail({
+    variable: "--font-yellowtail",
+    subsets: ["latin"],
+    weight: "400",
+  });
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -19,7 +26,7 @@ export default function Navbar() {
     <nav className="fixed top-0 start-0 w-full z-20 h-[85px] px-4 bg-[#c2001a] flex items-center">
       <div className="flex items-center gap-6 flex-grow">
         <Link href={"/"}>
-          <h1 className="text-white text-3xl font-normal font-[Yellowtail] lowercase rotate-[-10deg]">
+          <h1 className={`text-white text-3xl font-normal ${yellowtail.className} lowercase rotate-[-10deg]`}>
             e-voting
           </h1>
         </Link>
@@ -37,9 +44,22 @@ export default function Navbar() {
           >
             Hasil Voting
           </Link>
-          {/* <Link href="/register" className="text-white text-sm font-medium font-[Poppins] capitalize">
-            Registrasi
-          </Link> */}
+          {/* Link untuk Tutorial User */}
+          <Link
+            href="/tutorial/user"
+            className="text-white text-sm font-bold font-[Poppins] capitalize"
+          >
+            Tutorial User
+          </Link>
+          {/* Link untuk Tutorial Admin (hanya untuk admin) */}
+          {isAdmin && (
+            <Link
+              href="/tutorial/admin"
+              className="text-white text-sm font-bold font-[Poppins] capitalize"
+            >
+              Tutorial Admin
+            </Link>
+          )}
           {isAdmin && (
             <Link
               href="/admin-dashboard"
@@ -90,9 +110,22 @@ export default function Navbar() {
           >
             Hasil Voting
           </Link>
-          {/* <Link href="/register" className="text-sm font-medium font-[Poppins] capitalize">
-            Registrasi
-          </Link> */}
+          {/* Link untuk Tutorial User */}
+          <Link
+            href="/tutorial/user"
+            className="text-sm font-bold font-[Poppins] capitalize"
+          >
+            Tutorial User
+          </Link>
+          {/* Link untuk Tutorial Admin (hanya untuk admin) */}
+          {isAdmin && (
+            <Link
+              href="/tutorial/admin"
+              className="text-sm font-bold font-[Poppins] capitalize"
+            >
+              Tutorial Admin
+            </Link>
+          )}
           {isAdmin && (
             <Link
               href="/admin-dashboard"

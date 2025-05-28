@@ -60,7 +60,7 @@ export default function VotingRound() {
           backgroundPosition: 'center',
         }}
       >
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Daftar Voting</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6 mt-12">Daftar Voting</h1>
         {validVotingDetails.length === 0 ? (
           <p className="text-gray-700 text-lg">Belum ada voting yang tersedia.</p>
         ) : (
@@ -83,18 +83,32 @@ export default function VotingRound() {
                 >
                   Status: {getVotingStatus(voting.votingStart, voting.votingEnd)}
                 </p>
-                <Link
-                  href={`/voting-round/${voting.id}`}
-                  className="mt-4 inline-block bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
-                >
-                  Lihat Kandidat
-                </Link>
-                <Link
-                  href={`/register/${voting.id}`}
-                  className="mt-2 ml-2 inline-block bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
-                >
-                  Daftar untuk Vote
-                </Link>
+                <div className="mt-4 flex flex-col gap-2">
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    <Link
+                      href={`/voting-round/${voting.id}`}
+                      className="inline-block bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
+                    >
+                      Lihat Kandidat
+                    </Link>
+                    <Link
+                      href={`/register/${voting.id}`}
+                      className="inline-block bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition"
+                    >
+                      Daftar untuk Vote
+                    </Link>
+                  </div>
+                  {getVotingStatus(voting.votingStart, voting.votingEnd) === 'Selesai' && (
+                    <div className="flex justify-center">
+                      <Link
+                        href={`/result/${voting.id}`}
+                        className="inline-block bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition w-fit"
+                      >
+                        Lihat Pemenang
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
