@@ -63,7 +63,7 @@ export default function AdminTutorial() {
                 Untuk mengakses fitur admin, Anda harus login menggunakan wallet yang telah ditetapkan sebagai admin di kontrak E-Voting.
               </p>
               <ul className="list-decimal list-inside text-gray-600 mt-2">
-                <li>Hubungkan wallet Anda melalui tombol "Connect Wallet" di pojok kanan atas halaman.</li>
+                <li>Hubungkan wallet Anda melalui tombol &quot;Connect Wallet&quot; di pojok kanan atas halaman.</li>
                 <li>Jika wallet Anda terdaftar sebagai admin, Anda akan dapat mengakses halaman <strong>Admin Dashboard</strong>.</li>
               </ul>
               <div className="mt-4">
@@ -89,15 +89,15 @@ export default function AdminTutorial() {
                 Admin dapat membuat voting baru melalui halaman Admin Dashboard.
               </p>
               <ul className="list-decimal list-inside text-gray-600 mt-2">
-                <li>Klik tombol "Admin Dashboard" di menu navigasi (hanya muncul untuk admin).</li>
+                <li>Klik tombol &quot;Admin Dashboard&quot; di menu navigasi (hanya muncul untuk admin).</li>
                 <li>Isi formulir pembuatan voting, termasuk:</li>
                 <ul className="list-disc list-inside ml-6">
                   <li>Judul voting.</li>
                   <li>Waktu mulai voting, waktu selesai voting, dan waktu selesai registrasi.</li>
                   <li>Data kandidat (nama, URL foto, resume, visi, dan misi).</li>
                 </ul>
-                <li>Tambahkan kandidat lain jika diperlukan dengan tombol "Tambah Kandidat Lain".</li>
-                <li>Klik tombol "Buat Voting" untuk membuat voting baru.</li>
+                <li>Tambahkan kandidat lain jika diperlukan dengan tombol &quot;Tambah Kandidat Lain&quot;.</li>
+                <li>Klik tombol &quot;Buat Voting&quot; untuk membuat voting baru.</li>
                 <li>Konfirmasi transaksi di wallet Anda untuk menyimpan voting ke blockchain.</li>
               </ul>
               <div className="mt-4">
@@ -124,8 +124,8 @@ export default function AdminTutorial() {
               </p>
               <ul className="list-decimal list-inside text-gray-600 mt-2">
                 <li>Kunjungi halaman <strong>Daftar Voting</strong> melalui menu navigasi.</li>
-                <li>Pilih voting yang telah selesai (status "Selesai").</li>
-                <li>Klik tombol "Lihat Pemenang" untuk melihat kandidat dengan suara terbanyak.</li>
+                <li>Pilih voting yang telah selesai (status &quot;Selesai&quot;).</li>
+                <li>Klik tombol &quot;Lihat Pemenang&quot; untuk melihat kandidat dengan suara terbanyak.</li>
                 <li>Alternatifnya, Anda juga dapat mengunjungi halaman <strong>Hasil Voting</strong> untuk melihat semua hasil voting yang telah selesai.</li>
               </ul>
               <div className="mt-4">

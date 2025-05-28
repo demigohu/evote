@@ -34,15 +34,15 @@ export default function UserTutorial() {
                 Sebelum dapat memberikan suara, Anda harus terdaftar untuk voting tertentu.
               </p>
               <ul className="list-decimal list-inside text-gray-600 mt-2">
-                <li>Hubungkan wallet Anda melalui tombol "Connect Wallet" di pojok kanan atas halaman.</li>
+                <li>Hubungkan wallet Anda melalui tombol &quot;Connect Wallet&quot; di pojok kanan atas halaman.</li>
                 <li>Kunjungi halaman <strong>Daftar Voting</strong> melalui menu navigasi.</li>
-                <li>Pilih voting yang ingin Anda ikuti dan klik tombol "Daftar untuk Vote".</li>
+                <li>Pilih voting yang ingin Anda ikuti dan klik tombol &quot;Daftar untuk Vote&quot;.</li>
                 <li>Masukkan alamat email Anda yang telah diizinkan oleh admin.</li>
-                <li>Klik "Kirim OTP" untuk menerima kode verifikasi melalui email.</li>
-                <li>Masukkan kode OTP yang diterima, lalu klik "Verifikasi OTP".</li>
-                <li>Jika verifikasi berhasil, klik "Daftar" untuk mendaftar.</li>
+                <li>Klik &quot;Kirim OTP&quot; untuk menerima kode verifikasi melalui email.</li>
+                <li>Masukkan kode OTP yang diterima, lalu klik &quot;Verifikasi OTP&quot;.</li>
+                <li>Jika verifikasi berhasil, klik &quot;Daftar&quot; untuk mendaftar.</li>
                 <li>Konfirmasi transaksi di wallet Anda untuk menyelesaikan registrasi.</li>
-                <li>Setelah terdaftar, klik "Klaim Token" untuk mendapatkan token voting (konfirmasi transaksi di wallet).</li>
+                <li>Setelah terdaftar, klik &quot;Klaim Token&quot; untuk mendapatkan token voting (konfirmasi transaksi di wallet).</li>
               </ul>
               <div className="mt-4">
                 <Image
@@ -68,9 +68,9 @@ export default function UserTutorial() {
               </p>
               <ul className="list-decimal list-inside text-gray-600 mt-2">
                 <li>Kembali ke halaman <strong>Daftar Voting</strong> dan pilih voting yang Anda ikuti.</li>
-                <li>Klik tombol "Lihat Kandidat" untuk melihat daftar kandidat.</li>
-                <li>Klik tombol "Detail Kandidat" untuk melihat informasi lengkap kandidat (visi, misi, dan resume).</li>
-                <li>Pilih kandidat yang Anda dukung, lalu klik tombol "Vote Sekarang".</li>
+                <li>Klik tombol &quot;Lihat Kandidat&quot; untuk melihat daftar kandidat.</li>
+                <li>Klik tombol &quot;Detail Kandidat&quot; untuk melihat informasi lengkap kandidat (visi, misi, dan resume).</li>
+                <li>Pilih kandidat yang Anda dukung, lalu klik tombol &quot;Vote Sekarang&quot;.</li>
                 <li>Konfirmasi transaksi di wallet Anda untuk memberikan suara.</li>
                 <li>Tunggu hingga transaksi selesai, dan suara Anda akan tercatat.</li>
               </ul>
@@ -99,7 +99,7 @@ export default function UserTutorial() {
               <ul className="list-decimal list-inside text-gray-600 mt-2">
                 <li>Kunjungi halaman <strong>Hasil Voting</strong> melalui menu navigasi.</li>
                 <li>Lihat daftar voting yang telah selesai dan pemenangnya.</li>
-                <li>Alternatifnya, dari halaman <strong>Daftar Voting</strong>, pilih voting yang telah selesai dan klik "Lihat Pemenang".</li>
+                <li>Alternatifnya, dari halaman <strong>Daftar Voting</strong>, pilih voting yang telah selesai dan klik &quot;Lihat Pemenang&quot;.</li>
               </ul>
               <div className="mt-4">
                 <Image

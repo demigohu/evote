@@ -1,5 +1,5 @@
 "use client";
-import { Poppins, Yellowtail } from "next/font/google";
+import { Poppins} from "next/font/google";
 import "./globals.css";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider } from 'wagmi';
@@ -18,11 +18,6 @@ const poppins = Poppins({
   weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
 });
 
-const yellowtail = Yellowtail({
-  variable: "--font-yellowtail",
-  subsets: ["latin"],
-  weight: "400",
-});
 
 export default function RootLayout({
   children,
